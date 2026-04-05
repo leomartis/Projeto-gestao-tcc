@@ -8,9 +8,19 @@ import { useAuthStore } from '../stores/authStore'
 
 // Importa os componentes das telas
 // @ts-ignore
-import EstoquesView from '../views/Estoques.vue'
-import LoginView from '../views/LoginView.vue'
-import DashboardView from '../views/DashboardView.vue'
+import EstoquesView from '../views/Estoques/Estoques.vue'
+// @ts-ignore
+import AgendaView from '../views/Agenda/AgendaView.vue'
+// @ts-ignore
+import PessoasView from '../views/Pessoas/PessoasView.vue'
+// @ts-ignore
+import FinanceiroView from '../views/Financeiro/FinanceiroView.vue'
+// @ts-ignore
+import VendasView from '../views/Vendas/VendasView.vue'
+// @ts-ignore
+import RastreioView from '../views/Rastreio/RastreioView.vue'
+import LoginView from '../views/Login/LoginView.vue'
+import DashboardView from '../views/Dashboard/DashboardView.vue'
 
 // ---------------------------------------------------------------------------
 // DEFINIÇÃO DAS ROTAS
@@ -19,7 +29,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'home',
-    component: EstoquesView
+    component: LoginView
   },
   {
     path: '/login',
@@ -30,7 +40,42 @@ const routes: RouteRecordRaw[] = [
     path: '/dashboard',
     name: 'dashboard',
     component: DashboardView,
-    // Exige que o usuário esteja logado
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/agenda',
+    name: 'agenda',
+    component: AgendaView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/estoques',
+    name: 'estoques',
+    component: EstoquesView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/pessoas',
+    name: 'pessoas',
+    component: PessoasView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/financeiro',
+    name: 'financeiro',
+    component: FinanceiroView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/vendas',
+    name: 'vendas',
+    component: VendasView,
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/rastreio',
+    name: 'rastreio',
+    component: RastreioView,
     meta: { requiresAuth: true }
   }
 ]

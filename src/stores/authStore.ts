@@ -5,10 +5,10 @@ import { signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 
 const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
+  const user = ref<User | { email: string } | null>(null)
   const authIsReady = ref(false)
 
-  const setUser = (payload: User | null) => {
+  const setUser = (payload: User | { email: string } | null) => {
     user.value = payload
   }
 

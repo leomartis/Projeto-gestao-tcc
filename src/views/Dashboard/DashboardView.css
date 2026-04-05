@@ -1,0 +1,306 @@
+.dashboard-page {
+  display: flex;
+  min-height: 100vh;
+  background: #f1f3f8;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-side {
+  width: 260px;
+  background: #1f3978;
+  color: white;
+  padding: 16px 18px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.search-box {
+  margin-top: 0;
+}
+
+.brand-logo {
+  width: 60px;
+  height: 42px;
+  border-radius: 12px;
+  background: white;
+  color: #1f3978;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.brand-title,
+.brand-subtitle {
+  display: block;
+  line-height: 1.1;
+}
+
+.brand-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.side-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.side-menu a {
+  color: white;
+  text-decoration: none;
+  padding: 10px 12px;
+  border-radius: 12px;
+  transition: background 0.2s;
+  width: 100%;
+  display: block;
+  text-align: left;
+}
+
+.side-menu a:hover,
+.side-menu .router-link-active,
+.side-menu .router-link-exact-active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 24px;
+}
+
+.main-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.menu-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.header-left h2 {
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.user-name {
+  color: #4b5563;
+  font-weight: 700;
+}
+
+.icon,
+.notification {
+  background: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.notification {
+  position: relative;
+}
+
+.notification span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #dc2626;
+  color: white;
+  font-size: 0.75rem;
+  display: grid;
+  place-items: center;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+  min-height: 110px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stat-card .stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.stat-card strong {
+  font-size: 1.45rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.stat-card span:last-child {
+  color: #6b7280;
+}
+
+.green .stat-icon { background: #16a34a; }
+.blue .stat-icon { background: #2563eb; }
+.yellow .stat-icon { background: #f59e0b; }
+.red .stat-icon { background: #dc2626; }
+
+.table-panel {
+  background: white;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.table-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.buttons-group,
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.buttons-group button,
+.filter-group select,
+.filter-group label {
+  border-radius: 12px;
+}
+
+.buttons-group button {
+  padding: 10px 16px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+}
+
+.buttons-group .primary {
+  background: #1d4ed8;
+  color: white;
+  border: none;
+}
+
+.filter-group label {
+  font-weight: 700;
+  color: #374151;
+}
+
+.filter-group select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.data-table th {
+  color: #374151;
+  font-weight: 700;
+  background: #f8fafc;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.page-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.page-controls button {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.page-controls .active {
+  background: #1d4ed8;
+  color: white;
+  border-color: #1d4ed8;
+}
