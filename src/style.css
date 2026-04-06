@@ -164,21 +164,19 @@ code {
 
 #app {
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   margin: 0;
   padding: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
+  display: block; /* MUITO IMPORTANTE */
+
   background-color: white !important;
-  box-sizing: border-box;
 }
 
 .app-container {
   width: 100%;
   min-height: 100vh;
-  display: flex;
+  display: block;
   align-items: center;
   justify-content: center;
 }

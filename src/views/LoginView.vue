@@ -22,31 +22,38 @@ const login = async () => {
   loading.value = true
   error.value = ''
 
-  if (email.value === validEmail && password.value === validPassword) {
-    authStore.setUser({ email: validEmail })
-    await router.push('/dashboard')
-  } else {
-    error.value = 'Email ou senha inválidos. Use admin@jeans.com / 123456'
-  }
-
-  loading.value = false
+  setTimeout(async () => {
+    if (email.value === validEmail && password.value === validPassword) {
+      authStore.setUser({ email: validEmail })
+      await router.push('/dashboard')
+    } else {
+      error.value = 'Email ou senha inválidos'
+    }
+    loading.value = false
+  }, 800)
 }
 </script>
 
 <template>
   <div class="login-container">
     <div class="login-box">
-      <h2>Login - Gestão Jeans</h2>
+      <h2>Gestão Jeans</h2>
+      <p class="subtitle">Acesse sua conta</p>
 
       <form @submit.prevent="login">
-        <label for="email">Email:</label>
-        <input id="email" v-model="email" type="email" placeholder="admin@jeans.com" required />
+        <div class="input-group">
+          <label>Email</label>
+          <input v-model="email" type="email" placeholder="admin@jeans.com" />
+        </div>
 
-        <label for="password">Senha:</label>
-        <input id="password" v-model="password" type="password" placeholder="123456" required />
+        <div class="input-group">
+          <label>Senha</label>
+          <input v-model="password" type="password" placeholder="••••••" />
+        </div>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? 'Entrando...' : 'Entrar' }}
+          <span v-if="!loading">Entrar</span>
+          <span v-else class="loader"></span>
         </button>
 
         <p v-if="error" class="error-message">{{ error }}</p>
@@ -56,73 +63,138 @@ const login = async () => {
 </template>
 
 <style scoped>
+/* FUNDO */
 .login-container {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 20px;
+  background: linear-gradient(135deg, #1e3a8a, #3b82f6, #6366f1);
+  font-family: 'Segoe UI', sans-serif;
 }
 
+/* CARD */
 .login-box {
-  max-widespth: 640px;
   width: 100%;
+  max-width: 400px;
   padding: 2.5rem;
   border-radius: 24px;
-  background: white;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
-  text-align: center;
+
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+
+  color: white;
+
+  animation: fadeIn 0.6s ease;
 }
 
-.login-box h2 {
-  margin-bottom: 1rem;
-  color: #2b1c6b;
+/* TITULO */
+h2 {
+  margin: 0;
+  font-size: 2rem;
 }
 
+.subtitle {
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+}
+
+/* FORM */
 form {
-  display: grid;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+/* INPUT */
+.input-group {
+  display: flex;
+  flex-direction: column;
 }
 
 label {
-  text-align: left;
-  font-weight: 600;
-  color: #4b4a5a;
+  margin-bottom: 0.3rem;
+  font-size: 0.9rem;
 }
 
 input {
-  width: 100%;
-  padding: 0.95rem 1rem;
-  border: 1px solid #d7d3e6;
+  padding: 0.9rem;
   border-radius: 12px;
-  font-size: 1rem;
+  border: none;
+
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 input:focus {
   outline: none;
-  border-color: #8c5bff;
-  box-shadow: 0 0 0 4px rgba(140, 91, 255, 0.12);
+  border: 1px solid #60a5fa;
 }
 
+/* BOTÃO */
 button {
-  margin-top: 1.5rem;
-  padding: 0.95rem 1.4rem;
-  background: #6f5cff;
-  color: white;
+  margin-top: 0.5rem;
+  padding: 0.9rem;
+  border-radius: 12px;
   border: none;
-  border-radius: 14px;
-  font-size: 1rem;
-  font-weight: 700;
+
+  background: linear-gradient(90deg, #22c55e, #16a34a);
+  color: white;
+  font-weight: bold;
+
   cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover:not(:disabled) {
+  transform: scale(1.03);
 }
 
 button:disabled {
-  opacity: 0.65;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 
+/* LOADING */
+.loader {
+  width: 18px;
+  height: 18px;
+  border: 3px solid white;
+  border-top: 3px solid transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+/* ERRO */
 .error-message {
-  color: #d32f2f;
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
+  color: #fca5a5;
+  font-size: 0.9rem;
+}
+
+/* ANIMAÇÕES */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
