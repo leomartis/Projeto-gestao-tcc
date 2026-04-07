@@ -1,9 +1,148 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const isSidebarCollapsed = ref(false)
+const showColumnPanel = ref(false)
+const currentPage = ref(4)
+const totalPages = 7
+const filters = ref({ column: 'Data Vencimento', range: 'Este mês' })
+
+const tableColumns = [
+  { key: 'categoria', label: 'Categoria' },
+  { key: 'vencimento', label: 'Vencimento' },
+  { key: 'descricao', label: 'Descrição' },
+  { key: 'pessoa', label: 'Pessoa' },
+  { key: 'valor', label: 'Valor' },
+  { key: 'valorDevido', label: 'Valor Devido' },
+  { key: 'baixado', label: 'Baixado' }
+]
+
+const selectedColumnKeys = ref(tableColumns.map((column) => column.key))
+
+type TableRow = Record<string, string>
+const tableRows = ref<TableRow[]>([
+  {
+    sinal: '✔',
+    categoria: 'Vendas',
+    vencimento: '14/04/2018',
+    descricao: 'VENDA Nº 35',
+    pessoa: 'João Marcio Rodrigues',
+    valor: '20,00',
+    valorDevido: '20,00',
+    baixado: '☐'
+  },
+  {
+    sinal: '✔',
+    categoria: 'Vendas',
+    vencimento: '17/04/2018',
+    descricao: 'NOTA DE SERVIÇO Nº 1',
+    pessoa: 'João Marcio Rodrigues',
+    valor: '50,00',
+    valorDevido: '50,00',
+    baixado: '☐'
+  },
+  {
+    sinal: '●',
+    categoria: 'Aluguel',
+    vencimento: '18/04/2018',
+    descricao: 'JAILSON',
+    pessoa: 'LUIZA',
+    valor: '5,00',
+    valorDevido: '0,00',
+    baixado: '☑'
+  },
+  {
+    sinal: '✔',
+    categoria: 'Vendas',
+    vencimento: '18/04/2018',
+    descricao: 'VENDA Nº 110',
+    pessoa: 'Matheus Silva',
+    valor: '15,00',
+    valorDevido: '0,00',
+    baixado: '☐'
+  }
+])
+
+const filteredColumns = computed(() => tableColumns.filter((column) => selectedColumnKeys.value.includes(column.key)))
+
+const toggleMenu = () => {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value
+}
+
+const insertRow = () => {
+  tableRows.value.unshift({
+    sinal: '★',
+    categoria: 'Novo',
+    vencimento: '01/05/2026',
+    descricao: 'LANÇAMENTO RÁPIDO',
+    pessoa: 'Usuário',
+    valor: '0,00',
+    valorDevido: '0,00',
+    baixado: '☐'
+  })
+  window.alert('Linha inserida com sucesso!')
+}
+
+const exportExcel = () => {
+  downloadCsv('movimento-financeiro.csv')
+}
+
+const toggleColumnSelector = () => {
+  showColumnPanel.value = !showColumnPanel.value
+}
+
+const openReports = () => {
+  router.push('/financeiro')
+}
+
+const downloadTitles = () => {
+  downloadCsv('titulos-baixados.csv')
+}
+
+const selectPage = (page: number) => {
+  currentPage.value = page
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value -= 1
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages) {
+    currentPage.value += 1
+  }
+}
+
+const toggleColumn = (key: string) => {
+  if (selectedColumnKeys.value.includes(key)) {
+    selectedColumnKeys.value = selectedColumnKeys.value.filter((column) => column !== key)
+  } else {
+    selectedColumnKeys.value.push(key)
+  }
+}
+
+const downloadCsv = (filename: string) => {
+  const headers = ['Sinal', ...filteredColumns.value.map((column) => column.label)]
+  const rows = tableRows.value.map((row) => filteredColumns.value.map((column) => row[column.key as keyof typeof row]))
+  const csvContent = [headers, ...rows].map((line) => line.join(',')).join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = filename
+  link.style.display = 'none'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
 </script>
 
 <template>
   <div class="dashboard-page">
-    <aside class="dashboard-side">
+    <aside :class="['dashboard-side', { collapsed: isSidebarCollapsed }]">
       <div class="brand">
         <div class="brand-logo">G</div>
         <div>
@@ -29,7 +168,7 @@
     <main class="dashboard-main">
       <header class="main-header">
         <div class="header-left">
-          <button class="menu-btn">☰</button>
+          <button class="menu-btn" @click="toggleMenu">☰</button>
           <div>
             <h2>Movimento Financeiro</h2>
           </div>
@@ -68,21 +207,41 @@
       <section class="table-panel">
         <div class="table-controls">
           <div class="buttons-group">
-            <button>Inserir</button>
-            <button>Excel</button>
-            <button>Seleciona colunas</button>
-            <button>Relatórios</button>
-            <button class="primary">Baixar Títulos</button>
+            <button @click="insertRow">Inserir</button>
+            <button @click="exportExcel">Excel</button>
+            <button @click="toggleColumnSelector">Seleciona colunas</button>
+            <button @click="openReports">Relatórios</button>
+            <button class="primary" @click="downloadTitles">Baixar Títulos</button>
           </div>
+
           <div class="filter-group">
             <label>Filtrar por</label>
-            <select>
+            <select v-model="filters.column">
               <option>Data Vencimento</option>
+              <option>Categoria</option>
+              <option>Pessoa</option>
             </select>
             <span>valor</span>
-            <select>
+            <select v-model="filters.range">
               <option>Este mês</option>
+              <option>Últimos 30 dias</option>
+              <option>Este ano</option>
             </select>
+          </div>
+        </div>
+
+        <div v-if="showColumnPanel" class="column-selector">
+          <strong>Colunas visíveis:</strong>
+          <div class="column-options">
+            <label v-for="column in tableColumns" :key="column.key">
+              <input
+                type="checkbox"
+                :value="column.key"
+                :checked="selectedColumnKeys.includes(column.key)"
+                @change="() => toggleColumn(column.key)"
+              />
+              {{ column.label }}
+            </label>
           </div>
         </div>
 
@@ -90,74 +249,32 @@
           <thead>
             <tr>
               <th></th>
-              <th>Categoria</th>
-              <th>Vencimento</th>
-              <th>Descrição</th>
-              <th>Pessoa</th>
-              <th>Valor</th>
-              <th>Valor Devido</th>
-              <th>Baixado</th>
+              <th v-for="column in filteredColumns" :key="column.key">{{ column.label }}</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>✔</td>
-              <td>Vendas</td>
-              <td>14/04/2018</td>
-              <td>VENDA Nº 35</td>
-              <td>João Marcio Rodrigues</td>
-              <td>20,00</td>
-              <td>20,00</td>
-              <td>☐</td>
-              <td>Selecione uma ação</td>
-            </tr>
-            <tr>
-              <td>✔</td>
-              <td>Vendas</td>
-              <td>17/04/2018</td>
-              <td>NOTA DE SERVIÇO Nº 1</td>
-              <td>João Marcio Rodrigues</td>
-              <td>50,00</td>
-              <td>50,00</td>
-              <td>☐</td>
-              <td>Selecione uma ação</td>
-            </tr>
-            <tr>
-              <td>●</td>
-              <td>Aluguel</td>
-              <td>18/04/2018</td>
-              <td>JAILSON</td>
-              <td>LUIZA</td>
-              <td>5,00</td>
-              <td>0,00</td>
-              <td>☑</td>
-              <td>Selecione uma ação</td>
-            </tr>
-            <tr>
-              <td>✔</td>
-              <td>Vendas</td>
-              <td>18/04/2018</td>
-              <td>VENDA Nº 110</td>
-              <td>Matheus Silva</td>
-              <td>15,00</td>
-              <td>0,00</td>
-              <td>☐</td>
+            <tr v-for="(row, index) in tableRows" :key="index">
+              <td>{{ row.sinal }}</td>
+              <td v-for="column in filteredColumns" :key="column.key">{{ row[column.key] }}</td>
               <td>Selecione uma ação</td>
             </tr>
           </tbody>
         </table>
 
         <div class="table-footer">
-          <span>Página 4 de 7</span>
+          <span>Página {{ currentPage }} de {{ totalPages }}</span>
           <div class="page-controls">
-            <button>Ant</button>
-            <button>2</button>
-            <button>3</button>
-            <button class="active">4</button>
-            <button>5</button>
-            <button>6</button>
-            <button>Seg</button>
+            <button @click="prevPage">Ant</button>
+            <button
+              v-for="page in totalPages"
+              :key="page"
+              :class="{ active: currentPage === page }"
+              @click="selectPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button @click="nextPage">Seg</button>
           </div>
         </div>
       </section>
