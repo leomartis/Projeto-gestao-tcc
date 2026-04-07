@@ -8,6 +8,14 @@ const showColumnPanel = ref(false)
 const currentPage = ref(4)
 const totalPages = 7
 const filters = ref({ column: 'Data Vencimento', range: 'Este mês' })
+type FilterState = {
+  column: string
+  range: string
+  text: string
+}
+
+const filterText = ref('')
+const activeFilters = ref<FilterState>({ column: filters.value.column, range: filters.value.range, text: '' })
 
 const tableColumns = [
   { key: 'categoria', label: 'Categoria' },
@@ -21,17 +29,17 @@ const tableColumns = [
 
 const selectedColumnKeys = ref(tableColumns.map((column) => column.key))
 
-type TableRow = Record<string, string>
+type TableRow = Record<string, string | number | boolean>
 const tableRows = ref<TableRow[]>([
   {
     sinal: '✔',
     categoria: 'Vendas',
-    vencimento: '14/04/2018',
+    vencimento: '2018-04-14',
     descricao: 'VENDA Nº 35',
     pessoa: 'João Marcio Rodrigues',
-    valor: '20,00',
-    valorDevido: '20,00',
-    baixado: '☐'
+    valor: 20,
+    valorDevido: 20,
+    baixado: false
   },
   {
     sinal: '✔',
@@ -67,6 +75,89 @@ const tableRows = ref<TableRow[]>([
 
 const filteredColumns = computed(() => tableColumns.filter((column) => selectedColumnKeys.value.includes(column.key)))
 
+const displayRows = computed(() => {
+  const rows = tableRows.value
+  const columnKey = activeFilters.value.column === 'Data Vencimento'
+    ? 'vencimento'
+    : activeFilters.value.column === 'Categoria'
+      ? 'categoria'
+      : 'pessoa'
+
+  if (columnKey === 'vencimento') {
+    const now = new Date()
+    return rows.filter((row) => {
+      const rowDate = new Date(String(row.vencimento))
+      if (activeFilters.value.range === 'Este mês') {
+        return rowDate.getMonth() === now.getMonth() && rowDate.getFullYear() === now.getFullYear()
+      }
+      if (activeFilters.value.range === 'Últimos 30 dias') {
+        const daysAgo = new Date(now)
+        daysAgo.setDate(now.getDate() - 30)
+        return rowDate >= daysAgo && rowDate <= now
+      }
+      if (activeFilters.value.range === 'Este ano') {
+        return rowDate.getFullYear() === now.getFullYear()
+      }
+      return true
+    })
+  }
+
+  if (!activeFilters.value.text.trim()) {
+    return rows
+  }
+
+  const search = activeFilters.value.text.trim().toLowerCase()
+  return rows.filter((row) => {
+    const value = String(row[columnKey] ?? '')
+    return value.toLowerCase().includes(search)
+  })
+})
+
+const editingRowIndex = ref<number | null>(null)
+const editRowData = ref<TableRow>({} as TableRow)
+
+const startEditRow = (row: TableRow) => {
+  const index = tableRows.value.findIndex((item) => item === row)
+  if (index === -1) return
+  editingRowIndex.value = index
+  editRowData.value = { ...tableRows.value[index] }
+}
+
+const saveEditRow = () => {
+  if (editingRowIndex.value === null) return
+  tableRows.value[editingRowIndex.value] = { ...editRowData.value }
+  editingRowIndex.value = null
+  window.alert('Registro atualizado com sucesso!')
+}
+
+const applyFilters = () => {
+  activeFilters.value = {
+    column: filters.value.column,
+    range: filters.value.range,
+    text: filterText.value
+  }
+}
+
+const clearFilters = () => {
+  filterText.value = ''
+  filters.value.column = 'Data Vencimento'
+  filters.value.range = 'Este mês'
+  applyFilters()
+}
+
+const cancelEdit = () => {
+  editingRowIndex.value = null
+}
+
+const deleteRow = (row: TableRow) => {
+  const index = tableRows.value.findIndex((item) => item === row)
+  if (index === -1) return
+  const removed = tableRows.value.splice(index, 1)
+  if (removed.length) {
+    window.alert('Registro excluído com sucesso!')
+  }
+}
+
 const toggleMenu = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value
 }
@@ -75,12 +166,12 @@ const insertRow = () => {
   tableRows.value.unshift({
     sinal: '★',
     categoria: 'Novo',
-    vencimento: '01/05/2026',
+    vencimento: '2026-05-01',
     descricao: 'LANÇAMENTO RÁPIDO',
     pessoa: 'Usuário',
-    valor: '0,00',
-    valorDevido: '0,00',
-    baixado: '☐'
+    valor: 0,
+    valorDevido: 0,
+    baixado: false
   })
   window.alert('Linha inserida com sucesso!')
 }
@@ -227,6 +318,14 @@ const downloadCsv = (filename: string) => {
               <option>Últimos 30 dias</option>
               <option>Este ano</option>
             </select>
+            <input
+              class="filter-input"
+              v-model="filterText"
+              type="text"
+              placeholder="Digite categoria ou pessoa"
+            />
+            <button class="apply-btn" type="button" @click="applyFilters">Aplicar</button>
+            <button class="secondary small" type="button" @click="clearFilters">Limpar</button>
           </div>
         </div>
 
@@ -245,6 +344,34 @@ const downloadCsv = (filename: string) => {
           </div>
         </div>
 
+        <div v-if="editingRowIndex !== null" class="edit-panel">
+          <h3>Editar registro</h3>
+          <div class="edit-inputs">
+            <div v-for="column in tableColumns" :key="column.key" class="edit-field">
+              <span>{{ column.label }}</span>
+              <template v-if="column.key === 'vencimento'">
+                <input v-model="editRowData[column.key]" type="date" />
+              </template>
+              <template v-else-if="column.key === 'valor' || column.key === 'valorDevido'">
+                <input v-model.number="editRowData[column.key]" type="number" step="0.01" min="0" />
+              </template>
+              <template v-else-if="column.key === 'baixado'">
+                <label class="checkbox-field">
+                  <input type="checkbox" v-model="editRowData[column.key]" />
+                  <span>Baixado</span>
+                </label>
+              </template>
+              <template v-else>
+                <input v-model="editRowData[column.key]" type="text" />
+              </template>
+            </div>
+          </div>
+          <div class="edit-actions">
+            <button @click="saveEditRow">Salvar</button>
+            <button class="secondary" @click="cancelEdit">Cancelar</button>
+          </div>
+        </div>
+
         <table class="data-table">
           <thead>
             <tr>
@@ -254,10 +381,16 @@ const downloadCsv = (filename: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, index) in tableRows" :key="index">
+            <tr v-for="(row, index) in displayRows" :key="index" :class="{ editing: editingRowIndex === index }">
               <td>{{ row.sinal }}</td>
-              <td v-for="column in filteredColumns" :key="column.key">{{ row[column.key] }}</td>
-              <td>Selecione uma ação</td>
+              <td v-for="column in filteredColumns" :key="column.key">
+                <span v-if="column.key === 'baixado'">{{ row[column.key] ? '☑' : '☐' }}</span>
+                <span v-else>{{ row[column.key] }}</span>
+              </td>
+              <td class="row-actions">
+                <button type="button" class="icon-btn edit" @click="startEditRow(row)">✏️ Editar</button>
+                <button type="button" class="icon-btn danger" @click="deleteRow(row)">🗑️ Excluir</button>
+              </td>
             </tr>
           </tbody>
         </table>
