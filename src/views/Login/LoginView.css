@@ -1,69 +1,264 @@
 .login-container {
   min-height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
+  background: #f0f4ff;
 }
 
-.login-box {
-  max-width: 640px;
-  width: 100%;
-  padding: 2.5rem;
-  border-radius: 24px;
-  background: white;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.08);
+/* LADO ESQUERDO — BRANDING */
+.login-branding {
+  display: none;
+  flex: 1;
+  background: linear-gradient(145deg, #1e3a8a 0%, #2563eb 50%, #7c3aed 100%);
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+  padding: 60px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-branding::before {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  top: -100px;
+  left: -100px;
+}
+
+.login-branding::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  bottom: -80px;
+  right: -60px;
+}
+
+@media (min-width: 900px) {
+  .login-branding {
+    display: flex;
+  }
+}
+
+.branding-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 900;
+  backdrop-filter: blur(10px);
+  z-index: 1;
+}
+
+.branding-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  z-index: 1;
   text-align: center;
 }
 
-.login-box h2 {
-  margin-bottom: 1rem;
-  color: #2b1c6b;
-}
-
-form {
-  display: grid;
-  gap: 1rem;
-}
-
-label {
-  text-align: left;
-  font-weight: 600;
-  color: #4b4a5a;
-}
-
-input {
-  width: 100%;
-  padding: 0.95rem 1rem;
-  border: 1px solid #d7d3e6;
-  border-radius: 12px;
+.branding-subtitle {
   font-size: 1rem;
+  opacity: 0.75;
+  z-index: 1;
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.6;
 }
 
-input:focus {
+.branding-features {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 1;
+}
+
+.branding-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+/* LADO DIREITO — FORMULÁRIO */
+.login-form-side {
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: #f0f4ff;
+}
+
+@media (min-width: 900px) {
+  .login-form-side {
+    flex: 0 0 460px;
+    background: #f0f4ff;
+  }
+}
+
+.login-box {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border-radius: 28px;
+  padding: 44px 40px;
+  box-shadow: 0 20px 60px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(0,0,0,0.06);
+}
+
+.login-box-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.login-box-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: white;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+}
+
+.login-box-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.login-box-header p {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: left;
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.85rem 1rem 0.85rem 2.75rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
   outline: none;
-  border-color: #8c5bff;
-  box-shadow: 0 0 0 4px rgba(140, 91, 255, 0.12);
+  border-color: #2563eb;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
-button {
-  margin-top: 1.5rem;
-  padding: 0.95rem 1.4rem;
-  background: #6f5cff;
+.login-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 0.9rem 1.4rem;
+  background: linear-gradient(135deg, #1e3a8a, #2563eb);
   color: white;
   border: none;
-  border-radius: 14px;
+  border-radius: 12px;
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
 }
 
-button:disabled {
+.login-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+}
+
+.login-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
 
+.hint-box {
+  margin-top: 20px;
+  padding: 12px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #1d4ed8;
+  text-align: center;
+  line-height: 1.5;
+}
+
 .error-message {
-  color: #d32f2f;
-  margin-top: 0.75rem;
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #dc2626;
+  font-size: 0.875rem;
+  text-align: center;
 }

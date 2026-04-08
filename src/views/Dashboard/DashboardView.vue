@@ -237,22 +237,41 @@ const downloadCsv = (filename: string) => {
       <div class="brand">
         <div class="brand-logo">G</div>
         <div>
-          <span class="brand-title">GESTÃO</span>
-          <span class="brand-subtitle">ONLINE</span>
+          <span class="brand-title">Gestão Jeans</span>
+          <span class="brand-subtitle">Sistema</span>
         </div>
       </div>
 
+      <div class="side-divider"></div>
+
       <div class="search-box">
-        <input type="text" placeholder="Procurar opção do menu..." />
+        <input type="text" placeholder="Buscar no menu..." />
       </div>
 
       <nav class="side-menu">
-        <router-link to="/agenda">Agenda</router-link>
-        <router-link to="/estoques">Estoque</router-link>
-        <router-link to="/pessoas">Pessoas</router-link>
-        <router-link to="/financeiro">Financeiro</router-link>
-        <router-link to="/vendas">Vendas</router-link>
-        <router-link to="/rastreio">Rastreio</router-link>
+        <span class="menu-section-label">Principal</span>
+        <router-link to="/dashboard">
+          <span class="menu-icon">📊</span><span>Dashboard</span>
+        </router-link>
+        <span class="menu-section-label">Módulos</span>
+        <router-link to="/agenda">
+          <span class="menu-icon">📅</span><span>Agenda</span>
+        </router-link>
+        <router-link to="/estoques">
+          <span class="menu-icon">📦</span><span>Estoque</span>
+        </router-link>
+        <router-link to="/pessoas">
+          <span class="menu-icon">👥</span><span>Pessoas</span>
+        </router-link>
+        <router-link to="/financeiro">
+          <span class="menu-icon">💰</span><span>Financeiro</span>
+        </router-link>
+        <router-link to="/vendas">
+          <span class="menu-icon">🛒</span><span>Vendas</span>
+        </router-link>
+        <router-link to="/rastreio">
+          <span class="menu-icon">📍</span><span>Rastreio</span>
+        </router-link>
       </nav>
     </aside>
 
@@ -262,35 +281,53 @@ const downloadCsv = (filename: string) => {
           <button class="menu-btn" @click="toggleMenu">☰</button>
           <div>
             <h2>Movimento Financeiro</h2>
+            <div class="header-breadcrumb">Dashboard / Financeiro</div>
           </div>
         </div>
 
         <div class="header-right">
-          <span class="user-name">João Marcio Rodrigues</span>
-          <span class="icon">👤</span>
-          <span class="notification">🔔<span>136</span></span>
+          <div class="notification-btn">
+            🔔
+            <span class="notif-badge">99</span>
+          </div>
+          <div class="user-chip">
+            <div class="user-avatar">JM</div>
+            <span class="user-name">João Marcio</span>
+          </div>
         </div>
       </header>
 
       <section class="stats-row">
         <article class="stat-card green">
-          <span class="stat-icon">💼</span>
-          <strong>350,00</strong>
+          <div class="stat-top">
+            <div class="stat-icon-wrap">💼</div>
+            <span class="stat-change">Hoje</span>
+          </div>
+          <strong>R$ 350,00</strong>
           <span>A Receber Hoje</span>
         </article>
         <article class="stat-card blue">
-          <span class="stat-icon">👍</span>
-          <strong>1.445,90</strong>
+          <div class="stat-top">
+            <div class="stat-icon-wrap">📋</div>
+            <span class="stat-change">Vencido</span>
+          </div>
+          <strong>R$ 1.445,90</strong>
           <span>Receb. em Atraso</span>
         </article>
         <article class="stat-card yellow">
-          <span class="stat-icon">📅</span>
-          <strong>2.550,00</strong>
+          <div class="stat-top">
+            <div class="stat-icon-wrap">📅</div>
+            <span class="stat-change">Hoje</span>
+          </div>
+          <strong>R$ 2.550,00</strong>
           <span>A Pagar Hoje</span>
         </article>
         <article class="stat-card red">
-          <span class="stat-icon">👎</span>
-          <strong>16.922,05</strong>
+          <div class="stat-top">
+            <div class="stat-icon-wrap">⚠️</div>
+            <span class="stat-change">Vencido</span>
+          </div>
+          <strong>R$ 16.922,05</strong>
           <span>Pagos em Atraso</span>
         </article>
       </section>

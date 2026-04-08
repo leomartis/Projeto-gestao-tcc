@@ -26,7 +26,7 @@ const login = async () => {
     authStore.setUser({ email: validEmail })
     await router.push('/dashboard')
   } else {
-    error.value = 'Email ou senha inválidos. Use admin@jeans.com / 123456'
+    error.value = 'Email ou senha inválidos.'
   }
 
   loading.value = false
@@ -35,22 +35,57 @@ const login = async () => {
 
 <template>
   <div class="login-container">
-    <div class="login-box">
-      <h2>Login - Gestão Jeans</h2>
+    <!-- Lado esquerdo: branding -->
+    <div class="login-branding">
+      <div class="branding-logo">G</div>
+      <div class="branding-title">Gestão Jeans</div>
+      <div class="branding-subtitle">Gerencie seu negócio com eficiência e praticidade</div>
+      <ul class="branding-features">
+        <li><span class="feature-dot"></span>Controle financeiro completo</li>
+        <li><span class="feature-dot"></span>Gestão de estoque em tempo real</li>
+        <li><span class="feature-dot"></span>Cadastro de clientes e vendas</li>
+        <li><span class="feature-dot"></span>Relatórios e rastreamento</li>
+      </ul>
+    </div>
 
-      <form @submit.prevent="login">
-        <label for="email">Email:</label>
-        <input id="email" v-model="email" type="email" placeholder="admin@jeans.com" required />
+    <!-- Lado direito: formulário -->
+    <div class="login-form-side">
+      <div class="login-box">
+        <div class="login-box-header">
+          <div class="login-box-logo">G</div>
+          <h2>Bem-vindo de volta</h2>
+          <p>Faça login para acessar o sistema</p>
+        </div>
 
-        <label for="password">Senha:</label>
-        <input id="password" v-model="password" type="password" placeholder="123456" required />
+        <form @submit.prevent="login">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <div class="input-wrapper">
+              <span class="input-icon">✉</span>
+              <input id="email" v-model="email" type="email" placeholder="admin@jeans.com" required />
+            </div>
+          </div>
 
-        <button type="submit" :disabled="loading">
-          {{ loading ? 'Entrando...' : 'Entrar' }}
-        </button>
+          <div class="form-group">
+            <label for="password">Senha</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input id="password" v-model="password" type="password" placeholder="••••••" required />
+            </div>
+          </div>
 
-        <p v-if="error" class="error-message">{{ error }}</p>
-      </form>
+          <button class="login-btn" type="submit" :disabled="loading">
+            {{ loading ? 'Entrando...' : 'Entrar no sistema' }}
+          </button>
+
+          <div class="hint-box">
+            Credenciais de demo:<br />
+            <strong>admin@jeans.com</strong> / <strong>123456</strong>
+          </div>
+
+          <p v-if="error" class="error-message">{{ error }}</p>
+        </form>
+      </div>
     </div>
   </div>
 </template>
