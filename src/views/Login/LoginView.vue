@@ -1,17 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/authStore'
+import { auth } from '../../firebase'
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
 
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
 const router = useRouter()
-const authStore = useAuthStore()
-
-const validEmail = 'admin@jeans.com'
-const validPassword = '123456'
 
 const login = async () => {
   if (!email.value || !password.value) {
@@ -22,11 +19,26 @@ const login = async () => {
   loading.value = true
   error.value = ''
 
-  if (email.value === validEmail && password.value === validPassword) {
-    authStore.setUser({ email: validEmail })
+  try {
+    // Tenta fazer login; se o usuário não existir ainda, cria automaticamente
+    try {
+      await signInWithEmailAndPassword(auth, email.value, password.value)
+    } catch (e: any) {
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+        await createUserWithEmailAndPassword(auth, email.value, password.value)
+      } else {
+        throw e
+      }
+    }
+    // onAuthStateChanged em main.ts atualiza o authStore automaticamente
     await router.push('/dashboard')
-  } else {
-    error.value = 'Email ou senha inválidos.'
+  } catch (e: any) {
+    const msgs: Record<string, string> = {
+      'auth/wrong-password': 'Senha incorreta.',
+      'auth/invalid-email': 'Email inválido.',
+      'auth/too-many-requests': 'Muitas tentativas. Tente novamente mais tarde.',
+    }
+    error.value = msgs[e.code] ?? 'Erro ao entrar. Verifique suas credenciais.'
   }
 
   loading.value = false

@@ -4,7 +4,9 @@
       "Bash(echo \"EXIT: $?\")",
       "Bash(npx vite:*)",
       "Bash(rm \"c:/Users/lferm/gestao-jeans/src/views/Rastreio/RastreioView.vue\" \"c:/Users/lferm/gestao-jeans/src/views/Rastreio/RastreioView.css\")",
-      "Bash(rmdir \"c:/Users/lferm/gestao-jeans/src/views/Rastreio\")"
+      "Bash(rmdir \"c:/Users/lferm/gestao-jeans/src/views/Rastreio\")",
+      "Bash(npx tsc:*)",
+      "Bash(node_modules/.bin/vue-tsc --noEmit)"
     ]
   }
 }
