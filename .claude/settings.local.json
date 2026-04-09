@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(ls c:/Users/lferm/gestao-jeans/.env*)",
+      "Bash(ls c:/Users/lferm/gestao-jeans/vite.config*)",
+      "Bash(npx vue-tsc:*)"
     ]
   }
 }

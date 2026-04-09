@@ -1,54 +1,105 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
+import { db } from '../../firebase'
+import {
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs
+} from 'firebase/firestore'
 
 const authStore = useAuthStore()
 
-type Venda = {
-  id: number
-  cliente: string
-  produto: string
-  quantidade: number
-  valor: number
+const metaDiaria = ref(1850)
+const showConfig = ref(false)
+
+type Faccao = {
+  id: string
   data: string
-  status: 'Concluída' | 'Pendente' | 'Cancelada'
+  firma: string
+  discriminacao: string
+  nCorte: string
+  qtdEnviada: number
+  qtdRecebida: number
+  precoPeca: number
 }
 
-const vendas = ref<Venda[]>([
-  { id: 1, cliente: 'Maria Souza', produto: 'Calça Jeans Slim', quantidade: 2, valor: 199.90, data: '2026-04-01', status: 'Concluída' },
-  { id: 2, cliente: 'João Pereira', produto: 'Bermuda Jeans', quantidade: 1, valor: 89.90, data: '2026-04-02', status: 'Concluída' },
-  { id: 3, cliente: 'Ana Lima', produto: 'Jaqueta Jeans', quantidade: 1, valor: 259.90, data: '2026-04-03', status: 'Pendente' },
-  { id: 4, cliente: 'Carlos Rocha', produto: 'Calça Jeans Wide Leg', quantidade: 3, valor: 179.90, data: '2026-04-04', status: 'Concluída' },
-  { id: 5, cliente: 'Fernanda Melo', produto: 'Short Jeans', quantidade: 2, valor: 79.90, data: '2026-04-05', status: 'Cancelada' },
-  { id: 6, cliente: 'Roberto Alves', produto: 'Calça Jeans Skinny', quantidade: 1, valor: 189.90, data: '2026-04-06', status: 'Pendente' },
-  { id: 7, cliente: 'Patrícia Costa', produto: 'Saia Jeans Midi', quantidade: 2, valor: 149.90, data: '2026-04-07', status: 'Concluída' },
-])
+const registros = ref<Faccao[]>([])
+let unsub: (() => void) | null = null
+
+const SEED: Omit<Faccao, 'id'>[] = [
+  { data: '2026-02-02', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '1511', qtdEnviada: 1400, qtdRecebida: 1400, precoPeca: 0 },
+  { data: '2026-02-02', firma: 'Roque', discriminacao: 'Calça', nCorte: '0106', qtdEnviada: 1400, qtdRecebida: 270,  precoPeca: 0 },
+  { data: '2026-02-03', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '0106', qtdEnviada: 1400, qtdRecebida: 1130, precoPeca: 0 },
+  { data: '2026-02-03', firma: 'Roque', discriminacao: 'Calça', nCorte: '1420', qtdEnviada: 1400, qtdRecebida: 650,  precoPeca: 0 },
+  { data: '2026-02-04', firma: 'Roque', discriminacao: 'Calça', nCorte: '1420', qtdEnviada: 1400, qtdRecebida: 750,  precoPeca: 0 },
+  { data: '2026-02-04', firma: 'Roque', discriminacao: 'Calça', nCorte: '103',  qtdEnviada: 1400, qtdRecebida: 1150, precoPeca: 0 },
+  { data: '2026-02-05', firma: 'Roque', discriminacao: 'Calça', nCorte: '103',  qtdEnviada: 1400, qtdRecebida: 250,  precoPeca: 0 },
+  { data: '2026-02-05', firma: 'Roque', discriminacao: 'Calça', nCorte: '1512', qtdEnviada: 1400, qtdRecebida: 1400, precoPeca: 0 },
+  { data: '2026-03-05', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '119',  qtdEnviada: 1400, qtdRecebida: 100,  precoPeca: 0 },
+  { data: '2026-03-06', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '119',  qtdEnviada: 1400, qtdRecebida: 1300, precoPeca: 0 },
+  { data: '2026-03-06', firma: 'Roque', discriminacao: 'Calça', nCorte: '151',  qtdEnviada: 1400, qtdRecebida: 477,  precoPeca: 0 },
+  { data: '2026-02-09', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '151',  qtdEnviada: 1400, qtdRecebida: 923,  precoPeca: 0 },
+  { data: '2026-02-09', firma: 'Roque', discriminacao: 'Calça', nCorte: '117',  qtdEnviada: 1400, qtdRecebida: 843,  precoPeca: 0 },
+]
+
+onMounted(async () => {
+  const col = collection(db, 'producao')
+  const snap = await getDocs(col)
+  if (snap.empty) {
+    await Promise.all(SEED.map(s => addDoc(col, s)))
+  }
+  unsub = onSnapshot(col, s => {
+    registros.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Faccao))
+  })
+})
+
+onUnmounted(() => unsub?.())
 
 const showForm = ref(false)
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const searchText = ref('')
-const filterStatus = ref('Todos')
 
-const emptyForm = (): Omit<Venda, 'id'> => ({
-  cliente: '', produto: '', quantidade: 1, valor: 0, data: new Date().toISOString().split('T')[0], status: 'Pendente'
+const emptyForm = (): Omit<Faccao, 'id'> => ({
+  data: new Date().toISOString().split('T')[0],
+  firma: '',
+  discriminacao: '',
+  nCorte: '',
+  qtdEnviada: 1400,
+  qtdRecebida: 0,
+  precoPeca: 0,
 })
 
 const form = ref(emptyForm())
 
 const filtered = computed(() => {
-  return vendas.value.filter(v => {
-    const matchStatus = filterStatus.value === 'Todos' || v.status === filterStatus.value
-    const matchSearch = !searchText.value || v.cliente.toLowerCase().includes(searchText.value.toLowerCase()) || v.produto.toLowerCase().includes(searchText.value.toLowerCase())
-    return matchStatus && matchSearch
-  })
+  if (!searchText.value) return registros.value
+  const s = searchText.value.toLowerCase()
+  return registros.value.filter(r =>
+    r.firma.toLowerCase().includes(s) ||
+    r.discriminacao.toLowerCase().includes(s) ||
+    r.nCorte.toLowerCase().includes(s)
+  )
 })
 
-const totalHoje = computed(() => vendas.value.filter(v => v.data === new Date().toISOString().split('T')[0] && v.status === 'Concluída').reduce((s, v) => s + v.valor * v.quantidade, 0))
-const totalMes = computed(() => vendas.value.filter(v => v.status === 'Concluída').reduce((s, v) => s + v.valor * v.quantidade, 0))
-const pendentes = computed(() => vendas.value.filter(v => v.status === 'Pendente').length)
-const canceladas = computed(() => vendas.value.filter(v => v.status === 'Cancelada').length)
+const groupedByDate = computed(() => {
+  const groups: Record<string, Faccao[]> = {}
+  for (const r of filtered.value) {
+    if (!groups[r.data]) groups[r.data] = []
+    groups[r.data].push(r)
+  }
+  return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+})
 
-const statusBadge = (s: string) => s === 'Concluída' ? 'green' : s === 'Pendente' ? 'yellow' : 'red'
+const subtotalDia  = (linhas: Faccao[]) => linhas.reduce((s, r) => s + r.qtdRecebida, 0)
+const valorDia     = (linhas: Faccao[]) => linhas.reduce((s, r) => s + r.qtdRecebida * r.precoPeca, 0)
+const progressoDia = (linhas: Faccao[]) => Math.min(100, Math.round((subtotalDia(linhas) / metaDiaria.value) * 100))
+const batiuMeta    = (linhas: Faccao[]) => subtotalDia(linhas) >= metaDiaria.value
+const temPreco     = (linhas: Faccao[]) => linhas.some(r => r.precoPeca > 0)
+
+const totalEnviado  = computed(() => registros.value.reduce((s, r) => s + r.qtdEnviada, 0))
+const totalRecebido = computed(() => registros.value.reduce((s, r) => s + r.qtdRecebida, 0))
+const totalPendente = computed(() => totalEnviado.value - totalRecebido.value)
+const totalValor    = computed(() => registros.value.reduce((s, r) => s + r.qtdRecebida * r.precoPeca, 0))
+const temAlgumPreco = computed(() => registros.value.some(r => r.precoPeca > 0))
 
 const openNew = () => {
   editingId.value = null
@@ -56,30 +107,33 @@ const openNew = () => {
   showForm.value = true
 }
 
-const openEdit = (v: Venda) => {
-  editingId.value = v.id
-  form.value = { cliente: v.cliente, produto: v.produto, quantidade: v.quantidade, valor: v.valor, data: v.data, status: v.status }
+const openEdit = (r: Faccao) => {
+  editingId.value = r.id
+  form.value = { data: r.data, firma: r.firma, discriminacao: r.discriminacao, nCorte: r.nCorte, qtdEnviada: r.qtdEnviada, qtdRecebida: r.qtdRecebida, precoPeca: r.precoPeca }
   showForm.value = true
 }
 
-const saveForm = () => {
-  if (editingId.value !== null) {
-    const idx = vendas.value.findIndex(v => v.id === editingId.value)
-    if (idx !== -1) vendas.value[idx] = { id: editingId.value, ...form.value }
+const saveForm = async () => {
+  if (editingId.value) {
+    await updateDoc(doc(db, 'producao', editingId.value), { ...form.value })
   } else {
-    const newId = Math.max(0, ...vendas.value.map(v => v.id)) + 1
-    vendas.value.unshift({ id: newId, ...form.value })
+    await addDoc(collection(db, 'producao'), { ...form.value })
   }
   showForm.value = false
 }
 
-const deleteRow = (id: number) => {
-  if (confirm('Excluir esta venda?')) {
-    vendas.value = vendas.value.filter(v => v.id !== id)
+const deleteRow = async (id: string) => {
+  if (confirm('Excluir este registro?')) {
+    await deleteDoc(doc(db, 'producao', id))
   }
 }
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const fmtData = (d: string) => {
+  const [y, m, day] = d.split('-')
+  return `${day}/${m}/${y}`
+}
+
+const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 </script>
 
 <template>
@@ -101,92 +155,103 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
         <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
         <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
         <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">🛒</span>Vendas</router-link>
-        <router-link to="/rastreio"><span class="subpage-nav-icon">📍</span>Rastreio</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
       </nav>
     </aside>
 
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
-          <h1>🛒 Vendas</h1>
-          <span class="subpage-breadcrumb">Sistema / Vendas</span>
+          <h1>✂️ Produção</h1>
+          <span class="subpage-breadcrumb">Sistema / Produção</span>
         </div>
-        <div class="subpage-user-chip">
-          <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
-          <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
+        <div class="header-right">
+          <button class="btn-config" @click="showConfig = !showConfig">⚙️ Configurar</button>
+          <div class="subpage-user-chip">
+            <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
+            <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
+          </div>
         </div>
       </div>
 
-      <div class="mod-stats">
-        <div class="mod-stat green">
-          <div class="mod-stat-top"><span class="mod-stat-icon">💰</span><span class="mod-stat-label">Hoje</span></div>
-          <strong>{{ fmt(totalHoje) }}</strong>
-          <span>Vendas Hoje</span>
+      <div v-if="showConfig" class="config-panel">
+        <h3>Configurações</h3>
+        <div class="config-grid">
+          <div class="mod-field">
+            <label>Meta diária (peças)</label>
+            <input v-model.number="metaDiaria" type="number" min="1" />
+          </div>
         </div>
+        <button class="save" @click="showConfig = false">Fechar</button>
+      </div>
+
+      <div class="mod-stats">
         <div class="mod-stat blue">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📈</span><span class="mod-stat-label">Mês</span></div>
-          <strong>{{ fmt(totalMes) }}</strong>
-          <span>Total do Mês</span>
+          <div class="mod-stat-top"><span class="mod-stat-icon">📤</span><span class="mod-stat-label">Enviadas</span></div>
+          <strong>{{ totalEnviado.toLocaleString('pt-BR') }}</strong>
+          <span>Peças Enviadas</span>
+        </div>
+        <div class="mod-stat green">
+          <div class="mod-stat-top"><span class="mod-stat-icon">📥</span><span class="mod-stat-label">Recebidas</span></div>
+          <strong>{{ totalRecebido.toLocaleString('pt-BR') }}</strong>
+          <span>Peças Recebidas</span>
         </div>
         <div class="mod-stat yellow">
           <div class="mod-stat-top"><span class="mod-stat-icon">⏳</span><span class="mod-stat-label">Pendente</span></div>
-          <strong>{{ pendentes }}</strong>
-          <span>Vendas Pendentes</span>
+          <strong>{{ totalPendente.toLocaleString('pt-BR') }}</strong>
+          <span>Peças Pendentes</span>
         </div>
-        <div class="mod-stat red">
-          <div class="mod-stat-top"><span class="mod-stat-icon">❌</span><span class="mod-stat-label">Cancelado</span></div>
-          <strong>{{ canceladas }}</strong>
-          <span>Canceladas</span>
+        <div class="mod-stat purple">
+          <div class="mod-stat-top"><span class="mod-stat-icon">💵</span><span class="mod-stat-label">Valor Total</span></div>
+          <strong>{{ temAlgumPreco ? fmtBRL(totalValor) : '—' }}</strong>
+          <span>Total em R$</span>
         </div>
       </div>
 
       <div class="mod-panel">
         <div class="mod-toolbar">
           <div class="mod-btns">
-            <button class="primary" @click="openNew">+ Nova Venda</button>
+            <button class="primary" @click="openNew">+ Novo Registro</button>
           </div>
           <div class="mod-search">
-            <input v-model="searchText" type="text" placeholder="Buscar cliente ou produto..." />
-            <select v-model="filterStatus">
-              <option>Todos</option>
-              <option>Concluída</option>
-              <option>Pendente</option>
-              <option>Cancelada</option>
-            </select>
+            <input v-model="searchText" type="text" placeholder="Buscar firma, discriminação ou corte..." />
           </div>
         </div>
 
         <div v-if="showForm" class="mod-form">
-          <h3>{{ editingId ? 'Editar Venda' : 'Nova Venda' }}</h3>
+          <h3>{{ editingId ? 'Editar Registro' : 'Novo Registro' }}</h3>
           <div class="mod-form-grid">
-            <div class="mod-field">
-              <label>Cliente</label>
-              <input v-model="form.cliente" type="text" placeholder="Nome do cliente" />
-            </div>
-            <div class="mod-field">
-              <label>Produto</label>
-              <input v-model="form.produto" type="text" placeholder="Nome do produto" />
-            </div>
-            <div class="mod-field">
-              <label>Quantidade</label>
-              <input v-model.number="form.quantidade" type="number" min="1" />
-            </div>
-            <div class="mod-field">
-              <label>Valor Unitário (R$)</label>
-              <input v-model.number="form.valor" type="number" step="0.01" min="0" />
-            </div>
             <div class="mod-field">
               <label>Data</label>
               <input v-model="form.data" type="date" />
             </div>
             <div class="mod-field">
-              <label>Status</label>
-              <select v-model="form.status">
-                <option>Concluída</option>
-                <option>Pendente</option>
-                <option>Cancelada</option>
-              </select>
+              <label>Firma</label>
+              <input v-model="form.firma" type="text" placeholder="Nome da firma" />
+            </div>
+            <div class="mod-field">
+              <label>Discriminação</label>
+              <input v-model="form.discriminacao" type="text" placeholder="Ex: Calça, CPLCP..." />
+            </div>
+            <div class="mod-field">
+              <label>Nº Corte</label>
+              <input v-model="form.nCorte" type="text" placeholder="Número do corte" />
+            </div>
+            <div class="mod-field">
+              <label>Qtd. Enviada</label>
+              <input v-model.number="form.qtdEnviada" type="number" min="0" />
+            </div>
+            <div class="mod-field">
+              <label>Qtd. Recebida</label>
+              <input v-model.number="form.qtdRecebida" type="number" min="0" />
+            </div>
+            <div class="mod-field">
+              <label>Valor por Peça (R$)</label>
+              <input v-model.number="form.precoPeca" type="number" step="0.01" min="0" placeholder="Ex: 12.50" />
+            </div>
+            <div class="mod-field valor-preview" v-if="form.precoPeca > 0 && form.qtdRecebida > 0">
+              <label>Total deste registro</label>
+              <span class="valor-calc">{{ fmtBRL(form.precoPeca * form.qtdRecebida) }}</span>
             </div>
           </div>
           <div class="mod-form-actions">
@@ -198,42 +263,72 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
         <table class="mod-table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Cliente</th>
-              <th>Produto</th>
-              <th>Qtd</th>
-              <th>Valor Unit.</th>
-              <th>Total</th>
               <th>Data</th>
-              <th>Status</th>
+              <th>Firma</th>
+              <th>Discriminação</th>
+              <th>Nº Corte</th>
+              <th>Qtd. Enviada</th>
+              <th>Qtd. Recebida</th>
+              <th>R$/Peça</th>
+              <th>Valor</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="v in filtered" :key="v.id">
-              <td>{{ v.id }}</td>
-              <td>{{ v.cliente }}</td>
-              <td>{{ v.produto }}</td>
-              <td>{{ v.quantidade }}</td>
-              <td>{{ fmt(v.valor) }}</td>
-              <td>{{ fmt(v.valor * v.quantidade) }}</td>
-              <td>{{ v.data }}</td>
-              <td><span class="mod-badge" :class="statusBadge(v.status)">{{ v.status }}</span></td>
-              <td>
-                <div class="mod-actions">
-                  <button class="mod-btn-icon edit" @click="openEdit(v)">✏️ Editar</button>
-                  <button class="mod-btn-icon danger" @click="deleteRow(v.id)">🗑️ Excluir</button>
-                </div>
-              </td>
-            </tr>
+            <template v-for="([data, linhas]) in groupedByDate" :key="data">
+              <tr v-for="r in linhas" :key="r.id">
+                <td>{{ fmtData(r.data) }}</td>
+                <td>{{ r.firma }}</td>
+                <td>{{ r.discriminacao }}</td>
+                <td>{{ r.nCorte }}</td>
+                <td class="num">{{ r.qtdEnviada.toLocaleString('pt-BR') }}</td>
+                <td class="num">{{ r.qtdRecebida.toLocaleString('pt-BR') }}</td>
+                <td class="num">{{ r.precoPeca > 0 ? fmtBRL(r.precoPeca) : '—' }}</td>
+                <td class="num txt-green">{{ r.precoPeca > 0 ? fmtBRL(r.qtdRecebida * r.precoPeca) : '—' }}</td>
+                <td>
+                  <div class="mod-actions">
+                    <button class="mod-btn-icon edit" @click="openEdit(r)">✏️ Editar</button>
+                    <button class="mod-btn-icon danger" @click="deleteRow(r.id)">🗑️ Excluir</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="subtotal-row">
+                <td colspan="2" class="subtotal-label">
+                  <span :class="batiuMeta(linhas) ? 'meta-ok' : 'meta-nao'">
+                    {{ batiuMeta(linhas) ? '✔' : '✗' }} {{ fmtData(data) }}
+                  </span>
+                </td>
+                <td colspan="2">
+                  <div class="progress-wrap">
+                    <div class="progress-bar">
+                      <div class="progress-fill" :class="batiuMeta(linhas) ? 'fill-green' : 'fill-yellow'" :style="{ width: progressoDia(linhas) + '%' }"></div>
+                    </div>
+                    <span class="progress-pct">{{ progressoDia(linhas) }}% da meta ({{ metaDiaria.toLocaleString('pt-BR') }})</span>
+                  </div>
+                </td>
+                <td class="num subtotal-val">{{ subtotalDia(linhas).toLocaleString('pt-BR') }}</td>
+                <td class="num subtotal-val">{{ subtotalDia(linhas).toLocaleString('pt-BR') }}</td>
+                <td></td>
+                <td class="num valor-dia" colspan="2">{{ temPreco(linhas) ? fmtBRL(valorDia(linhas)) : '—' }}</td>
+              </tr>
+            </template>
             <tr v-if="filtered.length === 0">
-              <td colspan="9" style="text-align:center;color:#94a3b8;padding:32px;">Nenhuma venda encontrada.</td>
+              <td colspan="9" style="text-align:center;color:#94a3b8;padding:32px;">Nenhum registro encontrado.</td>
             </tr>
           </tbody>
+          <tfoot>
+            <tr class="total-row">
+              <td colspan="4" class="total-label">TOTAL GERAL</td>
+              <td class="num total-val">{{ totalEnviado.toLocaleString('pt-BR') }}</td>
+              <td class="num total-val">{{ totalRecebido.toLocaleString('pt-BR') }}</td>
+              <td></td>
+              <td class="num total-val-brl" colspan="2">{{ temAlgumPreco ? fmtBRL(totalValor) : '—' }}</td>
+            </tr>
+          </tfoot>
         </table>
 
         <div class="mod-footer">
-          <span>{{ filtered.length }} registro(s) encontrado(s)</span>
+          <span>{{ filtered.length }} registro(s) — Meta diária: {{ metaDiaria.toLocaleString('pt-BR') }} peças</span>
         </div>
       </div>
     </main>
@@ -241,3 +336,34 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 </template>
 
 <style scoped src="./VendasView.css"></style>
+
+<style scoped>
+.header-right { display: flex; align-items: center; gap: 12px; }
+.btn-config { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 14px; font-size: 0.85rem; cursor: pointer; color: #475569; transition: background 0.15s; }
+.btn-config:hover { background: #e2e8f0; }
+.config-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.config-panel h3 { margin: 0 0 16px; font-size: 1rem; color: #1e293b; }
+.config-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; max-width: 280px; }
+.valor-preview { display: flex; flex-direction: column; justify-content: center; }
+.valor-calc { font-size: 1.2rem; font-weight: 700; color: #065f46; margin-top: 4px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.txt-green { color: #16a34a; font-weight: 600; }
+.subtotal-row td { background: #f1f5f9; border-top: 2px solid #cbd5e1; font-weight: 600; padding: 8px 12px; vertical-align: middle; }
+.subtotal-label { color: #475569; font-size: 0.85rem; }
+.subtotal-val { color: #1e40af; }
+.valor-dia { color: #065f46; font-weight: 700; text-align: right; }
+.meta-ok { color: #16a34a; }
+.meta-nao { color: #dc2626; }
+.progress-wrap { display: flex; align-items: center; gap: 8px; }
+.progress-bar { flex: 1; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; min-width: 80px; }
+.progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+.fill-green { background: #22c55e; }
+.fill-yellow { background: #f59e0b; }
+.progress-pct { font-size: 0.78rem; color: #64748b; white-space: nowrap; }
+.total-row td { background: #1e293b; color: #fff; font-weight: 700; padding: 10px 12px; border-top: 3px solid #334155; }
+.total-label { color: #94a3b8; font-size: 0.85rem; }
+.total-val { color: #fff; }
+.total-val-brl { color: #4ade80; text-align: right; font-size: 1.05rem; }
+.mod-stat.purple { border-left: 4px solid #7c3aed; }
+.mod-stat.purple .mod-stat-icon { background: #ede9fe; color: #7c3aed; }
+</style>

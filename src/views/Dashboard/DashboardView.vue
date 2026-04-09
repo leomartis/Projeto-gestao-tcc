@@ -267,10 +267,7 @@ const downloadCsv = (filename: string) => {
           <span class="menu-icon">💰</span><span>Financeiro</span>
         </router-link>
         <router-link to="/vendas">
-          <span class="menu-icon">🛒</span><span>Vendas</span>
-        </router-link>
-        <router-link to="/rastreio">
-          <span class="menu-icon">📍</span><span>Rastreio</span>
+          <span class="menu-icon">✂️</span><span>Produção</span>
         </router-link>
       </nav>
     </aside>

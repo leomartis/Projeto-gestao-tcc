@@ -17,8 +17,6 @@ import PessoasView from '../views/Pessoas/PessoasView.vue'
 import FinanceiroView from '../views/Financeiro/FinanceiroView.vue'
 // @ts-ignore
 import VendasView from '../views/Vendas/VendasView.vue'
-// @ts-ignore
-import RastreioView from '../views/Rastreio/RastreioView.vue'
 import LoginView from '../views/Login/LoginView.vue'
 import DashboardView from '../views/Dashboard/DashboardView.vue'
 
@@ -72,12 +70,6 @@ const routes: RouteRecordRaw[] = [
     component: VendasView,
     meta: { requiresAuth: true }
   },
-  {
-    path: '/rastreio',
-    name: 'rastreio',
-    component: RastreioView,
-    meta: { requiresAuth: true }
-  }
 ]
 
 // ---------------------------------------------------------------------------

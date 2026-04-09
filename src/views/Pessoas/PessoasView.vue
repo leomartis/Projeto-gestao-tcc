@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
+import { db } from '../../firebase'
+import {
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
+} from 'firebase/firestore'
 
 const authStore = useAuthStore()
 
 type Pessoa = {
-  id: number
+  id: string
   nome: string
   tipo: 'Cliente' | 'Fornecedor' | 'Colaborador'
   email: string
@@ -14,18 +18,19 @@ type Pessoa = {
   ativo: boolean
 }
 
-const pessoas = ref<Pessoa[]>([
-  { id: 1, nome: 'Maria Souza', tipo: 'Cliente', email: 'maria@email.com', telefone: '(11) 99999-1111', cidade: 'São Paulo', ativo: true },
-  { id: 2, nome: 'Distribuidora JK Jeans', tipo: 'Fornecedor', email: 'contato@jkjeans.com', telefone: '(11) 3333-4444', cidade: 'São Paulo', ativo: true },
-  { id: 3, nome: 'Carlos Rocha', tipo: 'Colaborador', email: 'carlos@gestao.com', telefone: '(21) 98888-2222', cidade: 'Rio de Janeiro', ativo: true },
-  { id: 4, nome: 'Ana Lima', tipo: 'Cliente', email: 'ana.lima@email.com', telefone: '(11) 97777-3333', cidade: 'Campinas', ativo: true },
-  { id: 5, nome: 'Tecidos Brasil Ltda', tipo: 'Fornecedor', email: 'vendas@tecidosbrasil.com', telefone: '(31) 3456-7890', cidade: 'Belo Horizonte', ativo: false },
-  { id: 6, nome: 'Fernanda Melo', tipo: 'Cliente', email: 'fernanda@email.com', telefone: '(85) 96666-4444', cidade: 'Fortaleza', ativo: true },
-  { id: 7, nome: 'Roberto Alves', tipo: 'Colaborador', email: 'roberto@gestao.com', telefone: '(41) 95555-5555', cidade: 'Curitiba', ativo: true },
-])
+const pessoas = ref<Pessoa[]>([])
+let unsub: (() => void) | null = null
+
+onMounted(() => {
+  unsub = onSnapshot(collection(db, 'pessoas'), snap => {
+    pessoas.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Pessoa))
+  })
+})
+
+onUnmounted(() => unsub?.())
 
 const showForm = ref(false)
-const editingId = ref<number | null>(null)
+const editingId = ref<string | null>(null)
 const searchText = ref('')
 const filterTipo = ref('Todos')
 
@@ -43,39 +48,32 @@ const filtered = computed(() => {
   })
 })
 
-const totalClientes = computed(() => pessoas.value.filter(p => p.tipo === 'Cliente').length)
+const totalClientes     = computed(() => pessoas.value.filter(p => p.tipo === 'Cliente').length)
 const totalFornecedores = computed(() => pessoas.value.filter(p => p.tipo === 'Fornecedor').length)
 const totalColaboradores = computed(() => pessoas.value.filter(p => p.tipo === 'Colaborador').length)
-const totalAtivos = computed(() => pessoas.value.filter(p => p.ativo).length)
+const totalAtivos       = computed(() => pessoas.value.filter(p => p.ativo).length)
 
 const tipoBadge = (t: string) => t === 'Cliente' ? 'blue' : t === 'Fornecedor' ? 'purple' : 'green'
 
-const openNew = () => {
-  editingId.value = null
-  form.value = emptyForm()
-  showForm.value = true
-}
-
+const openNew = () => { editingId.value = null; form.value = emptyForm(); showForm.value = true }
 const openEdit = (p: Pessoa) => {
   editingId.value = p.id
   form.value = { nome: p.nome, tipo: p.tipo, email: p.email, telefone: p.telefone, cidade: p.cidade, ativo: p.ativo }
   showForm.value = true
 }
 
-const saveForm = () => {
-  if (editingId.value !== null) {
-    const idx = pessoas.value.findIndex(p => p.id === editingId.value)
-    if (idx !== -1) pessoas.value[idx] = { id: editingId.value, ...form.value }
+const saveForm = async () => {
+  if (editingId.value) {
+    await updateDoc(doc(db, 'pessoas', editingId.value), { ...form.value })
   } else {
-    const newId = Math.max(0, ...pessoas.value.map(p => p.id)) + 1
-    pessoas.value.unshift({ id: newId, ...form.value })
+    await addDoc(collection(db, 'pessoas'), { ...form.value })
   }
   showForm.value = false
 }
 
-const deleteRow = (id: number) => {
+const deleteRow = async (id: string) => {
   if (confirm('Excluir este cadastro?')) {
-    pessoas.value = pessoas.value.filter(p => p.id !== id)
+    await deleteDoc(doc(db, 'pessoas', id))
   }
 }
 </script>
@@ -99,8 +97,7 @@ const deleteRow = (id: number) => {
         <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
         <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
         <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">🛒</span>Vendas</router-link>
-        <router-link to="/rastreio"><span class="subpage-nav-icon">📍</span>Rastreio</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
       </nav>
     </aside>
 
@@ -147,10 +144,7 @@ const deleteRow = (id: number) => {
           <div class="mod-search">
             <input v-model="searchText" type="text" placeholder="Buscar por nome ou e-mail..." />
             <select v-model="filterTipo">
-              <option>Todos</option>
-              <option>Cliente</option>
-              <option>Fornecedor</option>
-              <option>Colaborador</option>
+              <option>Todos</option><option>Cliente</option><option>Fornecedor</option><option>Colaborador</option>
             </select>
           </div>
         </div>
@@ -158,30 +152,14 @@ const deleteRow = (id: number) => {
         <div v-if="showForm" class="mod-form">
           <h3>{{ editingId ? 'Editar Cadastro' : 'Nova Pessoa' }}</h3>
           <div class="mod-form-grid">
-            <div class="mod-field">
-              <label>Nome</label>
-              <input v-model="form.nome" type="text" placeholder="Nome completo ou razão social" />
-            </div>
+            <div class="mod-field"><label>Nome</label><input v-model="form.nome" type="text" placeholder="Nome completo ou razão social" /></div>
             <div class="mod-field">
               <label>Tipo</label>
-              <select v-model="form.tipo">
-                <option>Cliente</option>
-                <option>Fornecedor</option>
-                <option>Colaborador</option>
-              </select>
+              <select v-model="form.tipo"><option>Cliente</option><option>Fornecedor</option><option>Colaborador</option></select>
             </div>
-            <div class="mod-field">
-              <label>E-mail</label>
-              <input v-model="form.email" type="email" placeholder="email@exemplo.com" />
-            </div>
-            <div class="mod-field">
-              <label>Telefone</label>
-              <input v-model="form.telefone" type="text" placeholder="(00) 00000-0000" />
-            </div>
-            <div class="mod-field">
-              <label>Cidade</label>
-              <input v-model="form.cidade" type="text" placeholder="Cidade" />
-            </div>
+            <div class="mod-field"><label>E-mail</label><input v-model="form.email" type="email" placeholder="email@exemplo.com" /></div>
+            <div class="mod-field"><label>Telefone</label><input v-model="form.telefone" type="text" placeholder="(00) 00000-0000" /></div>
+            <div class="mod-field"><label>Cidade</label><input v-model="form.cidade" type="text" placeholder="Cidade" /></div>
             <div class="mod-field" style="justify-content:flex-end;padding-bottom:4px;">
               <label>Ativo</label>
               <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;color:#334155;">
@@ -198,13 +176,7 @@ const deleteRow = (id: number) => {
         <table class="mod-table">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>E-mail</th>
-              <th>Telefone</th>
-              <th>Cidade</th>
-              <th>Status</th>
-              <th>Ações</th>
+              <th>Nome</th><th>Tipo</th><th>E-mail</th><th>Telefone</th><th>Cidade</th><th>Status</th><th>Ações</th>
             </tr>
           </thead>
           <tbody>
