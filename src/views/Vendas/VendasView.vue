@@ -3,8 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { db } from '../../firebase'
 import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore'
+import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, Send, Download, Clock, DollarSign, Settings, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -25,29 +26,8 @@ type Faccao = {
 const registros = ref<Faccao[]>([])
 let unsub: (() => void) | null = null
 
-const SEED: Omit<Faccao, 'id'>[] = [
-  { data: '2026-02-02', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '1511', qtdEnviada: 1400, qtdRecebida: 1400, precoPeca: 0 },
-  { data: '2026-02-02', firma: 'Roque', discriminacao: 'Calça', nCorte: '0106', qtdEnviada: 1400, qtdRecebida: 270,  precoPeca: 0 },
-  { data: '2026-02-03', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '0106', qtdEnviada: 1400, qtdRecebida: 1130, precoPeca: 0 },
-  { data: '2026-02-03', firma: 'Roque', discriminacao: 'Calça', nCorte: '1420', qtdEnviada: 1400, qtdRecebida: 650,  precoPeca: 0 },
-  { data: '2026-02-04', firma: 'Roque', discriminacao: 'Calça', nCorte: '1420', qtdEnviada: 1400, qtdRecebida: 750,  precoPeca: 0 },
-  { data: '2026-02-04', firma: 'Roque', discriminacao: 'Calça', nCorte: '103',  qtdEnviada: 1400, qtdRecebida: 1150, precoPeca: 0 },
-  { data: '2026-02-05', firma: 'Roque', discriminacao: 'Calça', nCorte: '103',  qtdEnviada: 1400, qtdRecebida: 250,  precoPeca: 0 },
-  { data: '2026-02-05', firma: 'Roque', discriminacao: 'Calça', nCorte: '1512', qtdEnviada: 1400, qtdRecebida: 1400, precoPeca: 0 },
-  { data: '2026-03-05', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '119',  qtdEnviada: 1400, qtdRecebida: 100,  precoPeca: 0 },
-  { data: '2026-03-06', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '119',  qtdEnviada: 1400, qtdRecebida: 1300, precoPeca: 0 },
-  { data: '2026-03-06', firma: 'Roque', discriminacao: 'Calça', nCorte: '151',  qtdEnviada: 1400, qtdRecebida: 477,  precoPeca: 0 },
-  { data: '2026-02-09', firma: 'Roque', discriminacao: 'CPLCP', nCorte: '151',  qtdEnviada: 1400, qtdRecebida: 923,  precoPeca: 0 },
-  { data: '2026-02-09', firma: 'Roque', discriminacao: 'Calça', nCorte: '117',  qtdEnviada: 1400, qtdRecebida: 843,  precoPeca: 0 },
-]
-
-onMounted(async () => {
-  const col = collection(db, 'producao')
-  const snap = await getDocs(col)
-  if (snap.empty) {
-    await Promise.all(SEED.map(s => addDoc(col, s)))
-  }
-  unsub = onSnapshot(col, s => {
+onMounted(() => {
+  unsub = onSnapshot(collection(db, 'producao'), s => {
     registros.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Faccao))
   })
 })
@@ -113,13 +93,21 @@ const openEdit = (r: Faccao) => {
   showForm.value = true
 }
 
+const saveError = ref('')
 const saveForm = async () => {
-  if (editingId.value) {
-    await updateDoc(doc(db, 'producao', editingId.value), { ...form.value })
-  } else {
-    await addDoc(collection(db, 'producao'), { ...form.value })
+  saveError.value = ''
+  try {
+    if (editingId.value) {
+      await updateDoc(doc(db, 'producao', editingId.value), { ...form.value })
+    } else {
+      await addDoc(collection(db, 'producao'), { ...form.value })
+    }
+    showForm.value = false
+  } catch (e: any) {
+    saveError.value = e?.code === 'permission-denied'
+      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
+      : 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
-  showForm.value = false
 }
 
 const deleteRow = async (id: string) => {
@@ -149,24 +137,24 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
       <div class="subpage-divider"></div>
       <nav class="subpage-nav">
         <span class="subpage-nav-label">Principal</span>
-        <router-link to="/dashboard"><span class="subpage-nav-icon">📊</span>Dashboard</router-link>
+        <router-link to="/dashboard"><span class="subpage-nav-icon"><LayoutDashboard :size="16"/></span>Dashboard</router-link>
         <span class="subpage-nav-label">Módulos</span>
-        <router-link to="/agenda"><span class="subpage-nav-icon">📅</span>Agenda</router-link>
-        <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
-        <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
-        <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
+        <router-link to="/agenda"><span class="subpage-nav-icon"><CalendarDays :size="16"/></span>Agenda</router-link>
+        <router-link to="/estoques"><span class="subpage-nav-icon"><Package :size="16"/></span>Estoque</router-link>
+        <router-link to="/pessoas"><span class="subpage-nav-icon"><Users :size="16"/></span>Pessoas</router-link>
+        <router-link to="/financeiro"><span class="subpage-nav-icon"><Wallet :size="16"/></span>Financeiro</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon"><Scissors :size="16"/></span>Produção</router-link>
       </nav>
     </aside>
 
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
-          <h1>✂️ Produção</h1>
+          <h1>Produção</h1>
           <span class="subpage-breadcrumb">Sistema / Produção</span>
         </div>
         <div class="header-right">
-          <button class="btn-config" @click="showConfig = !showConfig">⚙️ Configurar</button>
+          <button class="btn-config" @click="showConfig = !showConfig"><Settings :size="14"/> Configurar</button>
           <div class="subpage-user-chip">
             <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
             <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
@@ -187,22 +175,22 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
 
       <div class="mod-stats">
         <div class="mod-stat blue">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📤</span><span class="mod-stat-label">Enviadas</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><Send :size="18"/></span><span class="mod-stat-label">Enviadas</span></div>
           <strong>{{ totalEnviado.toLocaleString('pt-BR') }}</strong>
           <span>Peças Enviadas</span>
         </div>
         <div class="mod-stat green">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📥</span><span class="mod-stat-label">Recebidas</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><Download :size="18"/></span><span class="mod-stat-label">Recebidas</span></div>
           <strong>{{ totalRecebido.toLocaleString('pt-BR') }}</strong>
           <span>Peças Recebidas</span>
         </div>
         <div class="mod-stat yellow">
-          <div class="mod-stat-top"><span class="mod-stat-icon">⏳</span><span class="mod-stat-label">Pendente</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><Clock :size="18"/></span><span class="mod-stat-label">Pendente</span></div>
           <strong>{{ totalPendente.toLocaleString('pt-BR') }}</strong>
           <span>Peças Pendentes</span>
         </div>
         <div class="mod-stat purple">
-          <div class="mod-stat-top"><span class="mod-stat-icon">💵</span><span class="mod-stat-label">Valor Total</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><DollarSign :size="18"/></span><span class="mod-stat-label">Valor Total</span></div>
           <strong>{{ temAlgumPreco ? fmtBRL(totalValor) : '—' }}</strong>
           <span>Total em R$</span>
         </div>
@@ -258,6 +246,7 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
             <button class="save" @click="saveForm">Salvar</button>
             <button class="cancel" @click="showForm = false">Cancelar</button>
           </div>
+          <p v-if="saveError" class="save-error">⚠️ {{ saveError }}</p>
         </div>
 
         <table class="mod-table">
@@ -287,8 +276,8 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
                 <td class="num txt-green">{{ r.precoPeca > 0 ? fmtBRL(r.qtdRecebida * r.precoPeca) : '—' }}</td>
                 <td>
                   <div class="mod-actions">
-                    <button class="mod-btn-icon edit" @click="openEdit(r)">✏️ Editar</button>
-                    <button class="mod-btn-icon danger" @click="deleteRow(r.id)">🗑️ Excluir</button>
+                    <button class="mod-btn-icon edit" @click="openEdit(r)"><Pencil :size="13"/> Editar</button>
+                    <button class="mod-btn-icon danger" @click="deleteRow(r.id)"><Trash2 :size="13"/> Excluir</button>
                   </div>
                 </td>
               </tr>
@@ -339,31 +328,29 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
 
 <style scoped>
 .header-right { display: flex; align-items: center; gap: 12px; }
-.btn-config { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 14px; font-size: 0.85rem; cursor: pointer; color: #475569; transition: background 0.15s; }
-.btn-config:hover { background: #e2e8f0; }
-.config-panel { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.config-panel h3 { margin: 0 0 16px; font-size: 1rem; color: #1e293b; }
-.config-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; max-width: 280px; }
+.btn-config { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px 14px; font-size: 0.83rem; cursor: pointer; color: #6b7280; transition: background 0.15s; }
+.btn-config:hover { background: #e5e7eb; color: #374151; }
+.config-panel { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px 20px; margin: 0 20px 16px; }
+.config-panel h3 { margin: 0 0 12px; font-size: 0.95rem; color: #111827; font-weight: 700; }
+.config-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; max-width: 280px; }
 .valor-preview { display: flex; flex-direction: column; justify-content: center; }
-.valor-calc { font-size: 1.2rem; font-weight: 700; color: #065f46; margin-top: 4px; }
+.valor-calc { font-size: 1.1rem; font-weight: 700; color: #15803d; margin-top: 4px; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
-.txt-green { color: #16a34a; font-weight: 600; }
-.subtotal-row td { background: #f1f5f9; border-top: 2px solid #cbd5e1; font-weight: 600; padding: 8px 12px; vertical-align: middle; }
-.subtotal-label { color: #475569; font-size: 0.85rem; }
-.subtotal-val { color: #1e40af; }
-.valor-dia { color: #065f46; font-weight: 700; text-align: right; }
-.meta-ok { color: #16a34a; }
+.txt-green { color: #15803d; font-weight: 600; }
+.subtotal-row td { background: #f9fafb; border-top: 1px solid #e5e7eb; font-weight: 600; padding: 8px 16px; vertical-align: middle; }
+.subtotal-label { color: #6b7280; font-size: 0.83rem; }
+.subtotal-val { color: #1d4ed8; }
+.valor-dia { color: #15803d; font-weight: 700; text-align: right; }
+.meta-ok { color: #15803d; }
 .meta-nao { color: #dc2626; }
 .progress-wrap { display: flex; align-items: center; gap: 8px; }
-.progress-bar { flex: 1; height: 8px; background: #e2e8f0; border-radius: 99px; overflow: hidden; min-width: 80px; }
+.progress-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; min-width: 80px; }
 .progress-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
 .fill-green { background: #22c55e; }
 .fill-yellow { background: #f59e0b; }
-.progress-pct { font-size: 0.78rem; color: #64748b; white-space: nowrap; }
-.total-row td { background: #1e293b; color: #fff; font-weight: 700; padding: 10px 12px; border-top: 3px solid #334155; }
-.total-label { color: #94a3b8; font-size: 0.85rem; }
+.progress-pct { font-size: 0.76rem; color: #9ca3af; white-space: nowrap; }
+.total-row td { background: #111827; color: #fff; font-weight: 700; padding: 10px 16px; border-top: 2px solid #1f2937; }
+.total-label { color: #9ca3af; font-size: 0.83rem; }
 .total-val { color: #fff; }
-.total-val-brl { color: #4ade80; text-align: right; font-size: 1.05rem; }
-.mod-stat.purple { border-left: 4px solid #7c3aed; }
-.mod-stat.purple .mod-stat-icon { background: #ede9fe; color: #7c3aed; }
+.total-val-brl { color: #4ade80; text-align: right; font-size: 1rem; }
 </style>

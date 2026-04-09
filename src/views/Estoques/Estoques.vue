@@ -3,8 +3,9 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
 import { db } from '../../firebase'
 import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDocs
+  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore'
+import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, ClipboardList, CheckSquare, XCircle, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -18,23 +19,8 @@ type Item = {
 const itens = ref<Item[]>([])
 let unsub: (() => void) | null = null
 
-const SEED: Omit<Item, 'id'>[] = [
-  { referencia: '102', cor: 'Preta',  quantidade: 30 },
-  { referencia: '104', cor: 'Azul',   quantidade: 0  },
-  { referencia: '444', cor: 'Palha',  quantidade: 0  },
-  { referencia: '118', cor: 'Ocre',   quantidade: 0  },
-  { referencia: '169', cor: 'Branca', quantidade: 0  },
-  { referencia: '148', cor: 'Marrom', quantidade: 0  },
-  { referencia: '129', cor: 'Chumbo', quantidade: 0  },
-]
-
-onMounted(async () => {
-  const col = collection(db, 'estoque')
-  const snap = await getDocs(col)
-  if (snap.empty) {
-    await Promise.all(SEED.map(s => addDoc(col, s)))
-  }
-  unsub = onSnapshot(col, s => {
+onMounted(() => {
+  unsub = onSnapshot(collection(db, 'estoque'), s => {
     itens.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Item))
   })
 })
@@ -68,13 +54,21 @@ const openEdit = (i: Item) => {
   showForm.value = true
 }
 
+const saveError = ref('')
 const saveForm = async () => {
-  if (editingId.value) {
-    await updateDoc(doc(db, 'estoque', editingId.value), { ...form.value })
-  } else {
-    await addDoc(collection(db, 'estoque'), { ...form.value })
+  saveError.value = ''
+  try {
+    if (editingId.value) {
+      await updateDoc(doc(db, 'estoque', editingId.value), { ...form.value })
+    } else {
+      await addDoc(collection(db, 'estoque'), { ...form.value })
+    }
+    showForm.value = false
+  } catch (e: any) {
+    saveError.value = e?.code === 'permission-denied'
+      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
+      : 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
-  showForm.value = false
 }
 
 const deleteRow = async (id: string) => {
@@ -103,20 +97,20 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
       <div class="subpage-divider"></div>
       <nav class="subpage-nav">
         <span class="subpage-nav-label">Principal</span>
-        <router-link to="/dashboard"><span class="subpage-nav-icon">📊</span>Dashboard</router-link>
+        <router-link to="/dashboard"><span class="subpage-nav-icon"><LayoutDashboard :size="16"/></span>Dashboard</router-link>
         <span class="subpage-nav-label">Módulos</span>
-        <router-link to="/agenda"><span class="subpage-nav-icon">📅</span>Agenda</router-link>
-        <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
-        <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
-        <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
+        <router-link to="/agenda"><span class="subpage-nav-icon"><CalendarDays :size="16"/></span>Agenda</router-link>
+        <router-link to="/estoques"><span class="subpage-nav-icon"><Package :size="16"/></span>Estoque</router-link>
+        <router-link to="/pessoas"><span class="subpage-nav-icon"><Users :size="16"/></span>Pessoas</router-link>
+        <router-link to="/financeiro"><span class="subpage-nav-icon"><Wallet :size="16"/></span>Financeiro</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon"><Scissors :size="16"/></span>Produção</router-link>
       </nav>
     </aside>
 
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
-          <h1>📦 Estoque</h1>
+          <h1>Estoque</h1>
           <span class="subpage-breadcrumb">Sistema / Estoque</span>
         </div>
         <div class="subpage-user-chip">
@@ -127,22 +121,22 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
 
       <div class="mod-stats">
         <div class="mod-stat blue">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📋</span><span class="mod-stat-label">Referências</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><ClipboardList :size="18"/></span><span class="mod-stat-label">Referências</span></div>
           <strong>{{ totalItens }}</strong>
           <span>Itens Cadastrados</span>
         </div>
         <div class="mod-stat green">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📦</span><span class="mod-stat-label">Peças</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><Package :size="18"/></span><span class="mod-stat-label">Peças</span></div>
           <strong>{{ totalPecas.toLocaleString('pt-BR') }}</strong>
           <span>Total em Estoque</span>
         </div>
         <div class="mod-stat yellow">
-          <div class="mod-stat-top"><span class="mod-stat-icon">✔</span><span class="mod-stat-label">Com Estoque</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><CheckSquare :size="18"/></span><span class="mod-stat-label">Com Estoque</span></div>
           <strong>{{ comEstoque }}</strong>
           <span>Com Quantidade</span>
         </div>
         <div class="mod-stat red">
-          <div class="mod-stat-top"><span class="mod-stat-icon">❌</span><span class="mod-stat-label">Zerado</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><XCircle :size="18"/></span><span class="mod-stat-label">Zerado</span></div>
           <strong>{{ semEstoque }}</strong>
           <span>Sem Quantidade</span>
         </div>
@@ -178,6 +172,7 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
             <button class="save" @click="saveForm">Salvar</button>
             <button class="cancel" @click="showForm = false">Cancelar</button>
           </div>
+          <p v-if="saveError" class="save-error">⚠️ {{ saveError }}</p>
         </div>
 
         <table class="mod-table">
@@ -209,8 +204,8 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
               </td>
               <td>
                 <div class="mod-actions">
-                  <button class="mod-btn-icon edit" @click="openEdit(i)">✏️ Editar</button>
-                  <button class="mod-btn-icon danger" @click="deleteRow(i.id)">🗑️ Excluir</button>
+                  <button class="mod-btn-icon edit" @click="openEdit(i)"><Pencil :size="13"/> Editar</button>
+                  <button class="mod-btn-icon danger" @click="deleteRow(i.id)"><Trash2 :size="13"/> Excluir</button>
                 </div>
               </td>
             </tr>
@@ -238,9 +233,9 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
 <style scoped src="./Estoques.css"></style>
 
 <style scoped>
-.ref-code { font-size: 0.85rem; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+.ref-code { font-size: 0.83rem; background: #f3f4f6; padding: 2px 8px; border-radius: 5px; font-weight: 600; color: #374151; }
 .cor-cell { display: flex; align-items: center; gap: 8px; }
-.cor-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #cbd5e1; flex-shrink: 0; }
-.total-row td { background: #1e293b; color: #fff; font-weight: 700; padding: 10px 12px; border-top: 3px solid #334155; }
-.total-label { color: #94a3b8; font-size: 0.85rem; }
+.cor-dot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid #e5e7eb; flex-shrink: 0; }
+.total-row td { background: #111827; color: #fff; font-weight: 700; padding: 10px 16px; border-top: 2px solid #1f2937; }
+.total-label { color: #9ca3af; font-size: 0.83rem; }
 </style>

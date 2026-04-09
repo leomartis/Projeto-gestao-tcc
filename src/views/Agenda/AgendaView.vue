@@ -5,6 +5,7 @@ import { db } from '../../firebase'
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore'
+import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, Clock, AlertTriangle, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -67,13 +68,21 @@ const openEdit = (c: Compromisso) => {
   showForm.value = true
 }
 
+const saveError = ref('')
 const saveForm = async () => {
-  if (editingId.value) {
-    await updateDoc(doc(db, 'agenda', editingId.value), { ...form.value })
-  } else {
-    await addDoc(collection(db, 'agenda'), { ...form.value })
+  saveError.value = ''
+  try {
+    if (editingId.value) {
+      await updateDoc(doc(db, 'agenda', editingId.value), { ...form.value })
+    } else {
+      await addDoc(collection(db, 'agenda'), { ...form.value })
+    }
+    showForm.value = false
+  } catch (e: any) {
+    saveError.value = e?.code === 'permission-denied'
+      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
+      : 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
-  showForm.value = false
 }
 
 const deleteRow = async (id: string) => {
@@ -96,20 +105,20 @@ const deleteRow = async (id: string) => {
       <div class="subpage-divider"></div>
       <nav class="subpage-nav">
         <span class="subpage-nav-label">Principal</span>
-        <router-link to="/dashboard"><span class="subpage-nav-icon">📊</span>Dashboard</router-link>
+        <router-link to="/dashboard"><span class="subpage-nav-icon"><LayoutDashboard :size="16"/></span>Dashboard</router-link>
         <span class="subpage-nav-label">Módulos</span>
-        <router-link to="/agenda"><span class="subpage-nav-icon">📅</span>Agenda</router-link>
-        <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
-        <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
-        <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
+        <router-link to="/agenda"><span class="subpage-nav-icon"><CalendarDays :size="16"/></span>Agenda</router-link>
+        <router-link to="/estoques"><span class="subpage-nav-icon"><Package :size="16"/></span>Estoque</router-link>
+        <router-link to="/pessoas"><span class="subpage-nav-icon"><Users :size="16"/></span>Pessoas</router-link>
+        <router-link to="/financeiro"><span class="subpage-nav-icon"><Wallet :size="16"/></span>Financeiro</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon"><Scissors :size="16"/></span>Produção</router-link>
       </nav>
     </aside>
 
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
-          <h1>📅 Agenda</h1>
+          <h1>Agenda</h1>
           <span class="subpage-breadcrumb">Sistema / Agenda</span>
         </div>
         <div class="subpage-user-chip">
@@ -120,22 +129,22 @@ const deleteRow = async (id: string) => {
 
       <div class="mod-stats">
         <div class="mod-stat blue">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📅</span><span class="mod-stat-label">Hoje</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><CalendarDays :size="18"/></span><span class="mod-stat-label">Hoje</span></div>
           <strong>{{ hoje }}</strong>
           <span>Compromissos Hoje</span>
         </div>
         <div class="mod-stat yellow">
-          <div class="mod-stat-top"><span class="mod-stat-icon">⏳</span><span class="mod-stat-label">Abertos</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><Clock :size="18"/></span><span class="mod-stat-label">Abertos</span></div>
           <strong>{{ agendados }}</strong>
           <span>Agendados</span>
         </div>
         <div class="mod-stat red">
-          <div class="mod-stat-top"><span class="mod-stat-icon">⚠️</span><span class="mod-stat-label">Atrasado</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><AlertTriangle :size="18"/></span><span class="mod-stat-label">Atrasado</span></div>
           <strong>{{ atrasados }}</strong>
           <span>Atrasados</span>
         </div>
         <div class="mod-stat green">
-          <div class="mod-stat-top"><span class="mod-stat-icon">✅</span><span class="mod-stat-label">Feitos</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><CheckCircle2 :size="18"/></span><span class="mod-stat-label">Feitos</span></div>
           <strong>{{ concluidos }}</strong>
           <span>Concluídos</span>
         </div>
@@ -187,6 +196,7 @@ const deleteRow = async (id: string) => {
             <button class="save" @click="saveForm">Salvar</button>
             <button class="cancel" @click="showForm = false">Cancelar</button>
           </div>
+          <p v-if="saveError" class="save-error">⚠️ {{ saveError }}</p>
         </div>
 
         <table class="mod-table">
@@ -207,8 +217,8 @@ const deleteRow = async (id: string) => {
               <td><span class="mod-badge" :class="statusBadge(c.status)">{{ c.status }}</span></td>
               <td>
                 <div class="mod-actions">
-                  <button class="mod-btn-icon edit" @click="openEdit(c)">✏️ Editar</button>
-                  <button class="mod-btn-icon danger" @click="deleteRow(c.id)">🗑️ Excluir</button>
+                  <button class="mod-btn-icon edit" @click="openEdit(c)"><Pencil :size="13"/> Editar</button>
+                  <button class="mod-btn-icon danger" @click="deleteRow(c.id)"><Trash2 :size="13"/> Excluir</button>
                 </div>
               </td>
             </tr>

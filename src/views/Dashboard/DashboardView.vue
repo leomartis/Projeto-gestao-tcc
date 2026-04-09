@@ -1,238 +1,69 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { useAuthStore } from '../../stores/authStore'
+import { db } from '../../firebase'
+import { collection, onSnapshot } from 'firebase/firestore'
+import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, Settings } from 'lucide-vue-next'
 
-const router = useRouter()
+const authStore = useAuthStore()
 const isSidebarCollapsed = ref(false)
-const showColumnPanel = ref(false)
-const currentPage = ref(4)
-const totalPages = 7
-const filters = ref({ column: 'Data Vencimento', range: 'Este mês' })
-type FilterState = {
-  column: string
-  range: string
-  text: string
-}
+const searchText = ref('')
 
-const filterText = ref('')
-const activeFilters = ref<FilterState>({ column: filters.value.column, range: filters.value.range, text: '' })
+// ── Firestore listeners ────────────────────────────────────────────────────
+type Lancamento = { id: string; descricao: string; tipo: string; categoria: string; vencimento: string; valor: number; status: string }
+type Pessoa     = { id: string; tipo: string; ativo: boolean }
+type Item       = { id: string; referencia: string; cor: string; quantidade: number }
+type Faccao     = { id: string; qtdEnviada: number; qtdRecebida: number; precoPeca: number; data: string }
 
-const tableColumns = [
-  { key: 'categoria', label: 'Categoria' },
-  { key: 'vencimento', label: 'Vencimento' },
-  { key: 'descricao', label: 'Descrição' },
-  { key: 'pessoa', label: 'Pessoa' },
-  { key: 'valor', label: 'Valor' },
-  { key: 'valorDevido', label: 'Valor Devido' },
-  { key: 'baixado', label: 'Baixado' }
-]
+const lancamentos = ref<Lancamento[]>([])
+const pessoas     = ref<Pessoa[]>([])
+const estoque     = ref<Item[]>([])
+const producao    = ref<Faccao[]>([])
 
-const selectedColumnKeys = ref(tableColumns.map((column) => column.key))
+const unsubs: (() => void)[] = []
 
-type TableRow = Record<string, string | number | boolean>
-const tableRows = ref<TableRow[]>([
-  {
-    sinal: '✔',
-    categoria: 'Vendas',
-    vencimento: '2018-04-14',
-    descricao: 'VENDA Nº 35',
-    pessoa: 'João Marcio Rodrigues',
-    valor: 20,
-    valorDevido: 20,
-    baixado: false
-  },
-  {
-    sinal: '✔',
-    categoria: 'Vendas',
-    vencimento: '17/04/2018',
-    descricao: 'NOTA DE SERVIÇO Nº 1',
-    pessoa: 'João Marcio Rodrigues',
-    valor: '50,00',
-    valorDevido: '50,00',
-    baixado: '☐'
-  },
-  {
-    sinal: '●',
-    categoria: 'Aluguel',
-    vencimento: '18/04/2018',
-    descricao: 'JAILSON',
-    pessoa: 'LUIZA',
-    valor: '5,00',
-    valorDevido: '0,00',
-    baixado: '☑'
-  },
-  {
-    sinal: '✔',
-    categoria: 'Vendas',
-    vencimento: '18/04/2018',
-    descricao: 'VENDA Nº 110',
-    pessoa: 'Matheus Silva',
-    valor: '15,00',
-    valorDevido: '0,00',
-    baixado: '☐'
-  }
-])
+onMounted(() => {
+  unsubs.push(onSnapshot(collection(db, 'financeiro'), s => { lancamentos.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Lancamento)) }))
+  unsubs.push(onSnapshot(collection(db, 'pessoas'),    s => { pessoas.value     = s.docs.map(d => ({ id: d.id, ...d.data() } as Pessoa)) }))
+  unsubs.push(onSnapshot(collection(db, 'estoque'),    s => { estoque.value     = s.docs.map(d => ({ id: d.id, ...d.data() } as Item)) }))
+  unsubs.push(onSnapshot(collection(db, 'producao'),   s => { producao.value    = s.docs.map(d => ({ id: d.id, ...d.data() } as Faccao)) }))
+})
+onUnmounted(() => unsubs.forEach(u => u()))
 
-const filteredColumns = computed(() => tableColumns.filter((column) => selectedColumnKeys.value.includes(column.key)))
+// ── Stats ──────────────────────────────────────────────────────────────────
+const totalReceitas  = computed(() => lancamentos.value.filter(l => l.tipo === 'Receita' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
+const totalDespesas  = computed(() => lancamentos.value.filter(l => l.tipo === 'Despesa' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
+const saldo          = computed(() => totalReceitas.value - totalDespesas.value)
+const totalVencido   = computed(() => lancamentos.value.filter(l => l.status === 'Vencido').reduce((s, l) => s + l.valor, 0))
 
-const displayRows = computed(() => {
-  const rows = tableRows.value
-  const columnKey = activeFilters.value.column === 'Data Vencimento'
-    ? 'vencimento'
-    : activeFilters.value.column === 'Categoria'
-      ? 'categoria'
-      : 'pessoa'
+const totalPessoas   = computed(() => pessoas.value.length)
+const totalAtivos    = computed(() => pessoas.value.filter(p => p.ativo).length)
+const totalClientes  = computed(() => pessoas.value.filter(p => p.tipo === 'Cliente').length)
 
-  if (columnKey === 'vencimento') {
-    const now = new Date()
-    return rows.filter((row) => {
-      const rowDate = new Date(String(row.vencimento))
-      if (activeFilters.value.range === 'Este mês') {
-        return rowDate.getMonth() === now.getMonth() && rowDate.getFullYear() === now.getFullYear()
-      }
-      if (activeFilters.value.range === 'Últimos 30 dias') {
-        const daysAgo = new Date(now)
-        daysAgo.setDate(now.getDate() - 30)
-        return rowDate >= daysAgo && rowDate <= now
-      }
-      if (activeFilters.value.range === 'Este ano') {
-        return rowDate.getFullYear() === now.getFullYear()
-      }
-      return true
-    })
-  }
+const totalPecas     = computed(() => producao.value.reduce((s, f) => s + (f.qtdRecebida || 0), 0))
+const valorProducao  = computed(() => producao.value.reduce((s, f) => s + (f.qtdRecebida || 0) * (f.precoPeca || 0), 0))
 
-  if (!activeFilters.value.text.trim()) {
-    return rows
-  }
+const totalItensEstoque = computed(() => estoque.value.reduce((s, i) => s + (i.quantidade || 0), 0))
 
-  const search = activeFilters.value.text.trim().toLowerCase()
-  return rows.filter((row) => {
-    const value = String(row[columnKey] ?? '')
-    return value.toLowerCase().includes(search)
-  })
+// ── Tabela financeiro ──────────────────────────────────────────────────────
+const filteredLancamentos = computed(() => {
+  const s = searchText.value.toLowerCase()
+  return lancamentos.value
+    .filter(l => !s || l.descricao.toLowerCase().includes(s) || l.categoria.toLowerCase().includes(s))
+    .slice(0, 20)
 })
 
-const editingRowIndex = ref<number | null>(null)
-const editRowData = ref<TableRow>({} as TableRow)
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const statusBadge = (s: string) => s === 'Pago' ? 'green' : s === 'Pendente' ? 'yellow' : 'red'
+const tipoBadge   = (t: string) => t === 'Receita' ? 'green' : 'red'
 
-const startEditRow = (row: TableRow) => {
-  const index = tableRows.value.findIndex((item) => item === row)
-  if (index === -1) return
-  editingRowIndex.value = index
-  editRowData.value = { ...tableRows.value[index] }
-}
-
-const saveEditRow = () => {
-  if (editingRowIndex.value === null) return
-  tableRows.value[editingRowIndex.value] = { ...editRowData.value }
-  editingRowIndex.value = null
-  window.alert('Registro atualizado com sucesso!')
-}
-
-const applyFilters = () => {
-  activeFilters.value = {
-    column: filters.value.column,
-    range: filters.value.range,
-    text: filterText.value
-  }
-}
-
-const clearFilters = () => {
-  filterText.value = ''
-  filters.value.column = 'Data Vencimento'
-  filters.value.range = 'Este mês'
-  applyFilters()
-}
-
-const cancelEdit = () => {
-  editingRowIndex.value = null
-}
-
-const deleteRow = (row: TableRow) => {
-  const index = tableRows.value.findIndex((item) => item === row)
-  if (index === -1) return
-  const removed = tableRows.value.splice(index, 1)
-  if (removed.length) {
-    window.alert('Registro excluído com sucesso!')
-  }
-}
-
-const toggleMenu = () => {
-  isSidebarCollapsed.value = !isSidebarCollapsed.value
-}
-
-const insertRow = () => {
-  tableRows.value.unshift({
-    sinal: '★',
-    categoria: 'Novo',
-    vencimento: '2026-05-01',
-    descricao: 'LANÇAMENTO RÁPIDO',
-    pessoa: 'Usuário',
-    valor: 0,
-    valorDevido: 0,
-    baixado: false
-  })
-  window.alert('Linha inserida com sucesso!')
-}
-
-const exportExcel = () => {
-  downloadCsv('movimento-financeiro.csv')
-}
-
-const toggleColumnSelector = () => {
-  showColumnPanel.value = !showColumnPanel.value
-}
-
-const openReports = () => {
-  router.push('/financeiro')
-}
-
-const downloadTitles = () => {
-  downloadCsv('titulos-baixados.csv')
-}
-
-const selectPage = (page: number) => {
-  currentPage.value = page
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value -= 1
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < totalPages) {
-    currentPage.value += 1
-  }
-}
-
-const toggleColumn = (key: string) => {
-  if (selectedColumnKeys.value.includes(key)) {
-    selectedColumnKeys.value = selectedColumnKeys.value.filter((column) => column !== key)
-  } else {
-    selectedColumnKeys.value.push(key)
-  }
-}
-
-const downloadCsv = (filename: string) => {
-  const headers = ['Sinal', ...filteredColumns.value.map((column) => column.label)]
-  const rows = tableRows.value.map((row) => filteredColumns.value.map((column) => row[column.key as keyof typeof row]))
-  const csvContent = [headers, ...rows].map((line) => line.join(',')).join('\r\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = filename
-  link.style.display = 'none'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-}
+const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value }
 </script>
 
 <template>
   <div class="dashboard-page">
+
+    <!-- SIDEBAR -->
     <aside :class="['dashboard-side', { collapsed: isSidebarCollapsed }]">
       <div class="brand">
         <div class="brand-logo">G</div>
@@ -242,209 +73,148 @@ const downloadCsv = (filename: string) => {
         </div>
       </div>
 
-      <div class="side-divider"></div>
-
       <div class="search-box">
-        <input type="text" placeholder="Buscar no menu..." />
+        <input type="text" placeholder="Buscar..." />
       </div>
 
       <nav class="side-menu">
         <span class="menu-section-label">Principal</span>
-        <router-link to="/dashboard">
-          <span class="menu-icon">📊</span><span>Dashboard</span>
-        </router-link>
+        <router-link to="/dashboard"><LayoutDashboard :size="16" /><span>Dashboard</span></router-link>
         <span class="menu-section-label">Módulos</span>
-        <router-link to="/agenda">
-          <span class="menu-icon">📅</span><span>Agenda</span>
-        </router-link>
-        <router-link to="/estoques">
-          <span class="menu-icon">📦</span><span>Estoque</span>
-        </router-link>
-        <router-link to="/pessoas">
-          <span class="menu-icon">👥</span><span>Pessoas</span>
-        </router-link>
-        <router-link to="/financeiro">
-          <span class="menu-icon">💰</span><span>Financeiro</span>
-        </router-link>
-        <router-link to="/vendas">
-          <span class="menu-icon">✂️</span><span>Produção</span>
-        </router-link>
+        <router-link to="/agenda"><CalendarDays :size="16" /><span>Agenda</span></router-link>
+        <router-link to="/estoques"><Package :size="16" /><span>Estoque</span></router-link>
+        <router-link to="/pessoas"><Users :size="16" /><span>Pessoas</span></router-link>
+        <router-link to="/financeiro"><Wallet :size="16" /><span>Financeiro</span></router-link>
+        <router-link to="/vendas"><Scissors :size="16" /><span>Produção</span></router-link>
+        <span class="menu-section-label">Outros</span>
+        <router-link to="/dashboard"><Settings :size="16" /><span>Configurações</span></router-link>
       </nav>
+
+      <div class="side-user">
+        <div class="side-user-avatar">{{ authStore.user?.email?.slice(0,2).toUpperCase() ?? 'GJ' }}</div>
+        <div class="side-user-info">
+          <div class="side-user-name">{{ authStore.user?.email?.split('@')[0] ?? 'Usuário' }}</div>
+          <div class="side-user-email">{{ authStore.user?.email ?? '' }}</div>
+        </div>
+      </div>
     </aside>
 
+    <!-- MAIN -->
     <main class="dashboard-main">
-      <header class="main-header">
-        <div class="header-left">
-          <button class="menu-btn" @click="toggleMenu">☰</button>
-          <div>
-            <h2>Movimento Financeiro</h2>
-            <div class="header-breadcrumb">Dashboard / Financeiro</div>
+
+      <!-- TOP BAR -->
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <button class="menu-btn" @click="toggleMenu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+          <div class="welcome-text">
+            <h2>Bem-vindo, {{ authStore.user?.email?.split('@')[0] ?? 'Usuário' }}!</h2>
+            <p>Aqui está o resumo do seu sistema</p>
           </div>
         </div>
-
-        <div class="header-right">
-          <div class="notification-btn">
-            🔔
-            <span class="notif-badge">99</span>
-          </div>
+        <div class="top-bar-right">
+          <div class="period-badge"><CalendarDays :size="14" /> Este mês</div>
           <div class="user-chip">
-            <div class="user-avatar">JM</div>
-            <span class="user-name">João Marcio</span>
+            <div class="user-avatar">{{ authStore.user?.email?.slice(0,2).toUpperCase() ?? 'GJ' }}</div>
+            <span class="user-name">{{ authStore.user?.email ?? 'Usuário' }}</span>
           </div>
         </div>
-      </header>
+      </div>
 
-      <section class="stats-row">
-        <article class="stat-card green">
-          <div class="stat-top">
-            <div class="stat-icon-wrap">💼</div>
-            <span class="stat-change">Hoje</span>
-          </div>
-          <strong>R$ 350,00</strong>
-          <span>A Receber Hoje</span>
-        </article>
-        <article class="stat-card blue">
-          <div class="stat-top">
-            <div class="stat-icon-wrap">📋</div>
-            <span class="stat-change">Vencido</span>
-          </div>
-          <strong>R$ 1.445,90</strong>
-          <span>Receb. em Atraso</span>
-        </article>
-        <article class="stat-card yellow">
-          <div class="stat-top">
-            <div class="stat-icon-wrap">📅</div>
-            <span class="stat-change">Hoje</span>
-          </div>
-          <strong>R$ 2.550,00</strong>
-          <span>A Pagar Hoje</span>
-        </article>
-        <article class="stat-card red">
-          <div class="stat-top">
-            <div class="stat-icon-wrap">⚠️</div>
-            <span class="stat-change">Vencido</span>
-          </div>
-          <strong>R$ 16.922,05</strong>
-          <span>Pagos em Atraso</span>
-        </article>
-      </section>
-
-      <section class="table-panel">
-        <div class="table-controls">
-          <div class="buttons-group">
-            <button @click="insertRow">Inserir</button>
-            <button @click="exportExcel">Excel</button>
-            <button @click="toggleColumnSelector">Seleciona colunas</button>
-            <button @click="openReports">Relatórios</button>
-            <button class="primary" @click="downloadTitles">Baixar Títulos</button>
-          </div>
-
-          <div class="filter-group">
-            <label>Filtrar por</label>
-            <select v-model="filters.column">
-              <option>Data Vencimento</option>
-              <option>Categoria</option>
-              <option>Pessoa</option>
-            </select>
-            <span>valor</span>
-            <select v-model="filters.range">
-              <option>Este mês</option>
-              <option>Últimos 30 dias</option>
-              <option>Este ano</option>
-            </select>
-            <input
-              class="filter-input"
-              v-model="filterText"
-              type="text"
-              placeholder="Digite categoria ou pessoa"
-            />
-            <button class="apply-btn" type="button" @click="applyFilters">Aplicar</button>
-            <button class="secondary small" type="button" @click="clearFilters">Limpar</button>
-          </div>
+      <!-- STATS: FINANCEIRO -->
+      <div class="dash-section-title">Financeiro</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Receitas</div>
+          <div class="stat-value">{{ fmt(totalReceitas) }}</div>
+          <div class="stat-footer"><span class="stat-pill up">Pago</span> receitas confirmadas</div>
         </div>
-
-        <div v-if="showColumnPanel" class="column-selector">
-          <strong>Colunas visíveis:</strong>
-          <div class="column-options">
-            <label v-for="column in tableColumns" :key="column.key">
-              <input
-                type="checkbox"
-                :value="column.key"
-                :checked="selectedColumnKeys.includes(column.key)"
-                @change="() => toggleColumn(column.key)"
-              />
-              {{ column.label }}
-            </label>
-          </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Despesas</div>
+          <div class="stat-value">{{ fmt(totalDespesas) }}</div>
+          <div class="stat-footer"><span class="stat-pill down">Pago</span> despesas quitadas</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Saldo Líquido</div>
+          <div class="stat-value">{{ fmt(saldo) }}</div>
+          <div class="stat-footer"><span :class="['stat-pill', saldo >= 0 ? 'up' : 'down']">{{ saldo >= 0 ? 'Positivo' : 'Negativo' }}</span></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Em Atraso</div>
+          <div class="stat-value">{{ fmt(totalVencido) }}</div>
+          <div class="stat-footer"><span class="stat-pill down">Vencido</span> a regularizar</div>
+        </div>
+      </div>
 
-        <div v-if="editingRowIndex !== null" class="edit-panel">
-          <h3>Editar registro</h3>
-          <div class="edit-inputs">
-            <div v-for="column in tableColumns" :key="column.key" class="edit-field">
-              <span>{{ column.label }}</span>
-              <template v-if="column.key === 'vencimento'">
-                <input v-model="editRowData[column.key]" type="date" />
-              </template>
-              <template v-else-if="column.key === 'valor' || column.key === 'valorDevido'">
-                <input v-model.number="editRowData[column.key]" type="number" step="0.01" min="0" />
-              </template>
-              <template v-else-if="column.key === 'baixado'">
-                <label class="checkbox-field">
-                  <input type="checkbox" v-model="editRowData[column.key]" />
-                  <span>Baixado</span>
-                </label>
-              </template>
-              <template v-else>
-                <input v-model="editRowData[column.key]" type="text" />
-              </template>
-            </div>
-          </div>
-          <div class="edit-actions">
-            <button @click="saveEditRow">Salvar</button>
-            <button class="secondary" @click="cancelEdit">Cancelar</button>
+      <!-- STATS: MÓDULOS -->
+      <div class="dash-section-title">Módulos</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Produção Recebida</div>
+          <div class="stat-value">{{ totalPecas.toLocaleString('pt-BR') }}</div>
+          <div class="stat-footer"><span class="stat-pill neu">peças</span> total acumulado</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Valor Produção</div>
+          <div class="stat-value">{{ fmt(valorProducao) }}</div>
+          <div class="stat-footer"><span class="stat-pill neu">Total</span> em facção</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Pessoas Cadastradas</div>
+          <div class="stat-value">{{ totalPessoas }}</div>
+          <div class="stat-footer"><span class="stat-pill neu">{{ totalAtivos }} ativos</span> · {{ totalClientes }} clientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Estoque Total</div>
+          <div class="stat-value">{{ totalItensEstoque.toLocaleString('pt-BR') }}</div>
+          <div class="stat-footer"><span class="stat-pill neu">peças</span> · {{ estoque.length }} referências</div>
+        </div>
+      </div>
+
+      <!-- TABELA LANÇAMENTOS -->
+      <div class="table-panel">
+        <div class="panel-header">
+          <span class="panel-title">Lançamentos Financeiros</span>
+          <div class="panel-actions">
+            <input class="search-input" v-model="searchText" type="text" placeholder="Buscar..." />
+            <router-link to="/financeiro"><button class="btn-filter">Financeiro →</button></router-link>
+            <router-link to="/vendas"><button class="btn-filter">Produção →</button></router-link>
+            <router-link to="/estoques"><button class="btn-primary">+ Estoque</button></router-link>
           </div>
         </div>
 
         <table class="data-table">
           <thead>
             <tr>
-              <th></th>
-              <th v-for="column in filteredColumns" :key="column.key">{{ column.label }}</th>
-              <th>Ações</th>
+              <th>Tipo</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th>Vencimento</th>
+              <th>Valor</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, index) in displayRows" :key="index" :class="{ editing: editingRowIndex === index }">
-              <td>{{ row.sinal }}</td>
-              <td v-for="column in filteredColumns" :key="column.key">
-                <span v-if="column.key === 'baixado'">{{ row[column.key] ? '☑' : '☐' }}</span>
-                <span v-else>{{ row[column.key] }}</span>
+            <tr v-if="filteredLancamentos.length === 0">
+              <td colspan="6" style="text-align:center;color:#9ca3af;padding:32px;font-size:0.85rem">
+                Nenhum lançamento encontrado
               </td>
-              <td class="row-actions">
-                <button type="button" class="icon-btn edit" @click="startEditRow(row)">✏️ Editar</button>
-                <button type="button" class="icon-btn danger" @click="deleteRow(row)">🗑️ Excluir</button>
-              </td>
+            </tr>
+            <tr v-for="l in filteredLancamentos" :key="l.id">
+              <td><span :class="['badge', tipoBadge(l.tipo)]">{{ l.tipo }}</span></td>
+              <td style="color:#6b7280">{{ l.categoria }}</td>
+              <td style="font-weight:500">{{ l.descricao }}</td>
+              <td style="color:#6b7280">{{ l.vencimento }}</td>
+              <td style="font-weight:600">{{ fmt(l.valor) }}</td>
+              <td><span :class="['badge', statusBadge(l.status)]">{{ l.status }}</span></td>
             </tr>
           </tbody>
         </table>
 
         <div class="table-footer">
-          <span>Página {{ currentPage }} de {{ totalPages }}</span>
-          <div class="page-controls">
-            <button @click="prevPage">Ant</button>
-            <button
-              v-for="page in totalPages"
-              :key="page"
-              :class="{ active: currentPage === page }"
-              @click="selectPage(page)"
-            >
-              {{ page }}
-            </button>
-            <button @click="nextPage">Seg</button>
-          </div>
+          Mostrando {{ filteredLancamentos.length }} de {{ lancamentos.length }} lançamentos
         </div>
-      </section>
+      </div>
+
     </main>
   </div>
 </template>

@@ -6,6 +6,7 @@ import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore'
 import { Bar, Doughnut } from 'vue-chartjs'
+import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, ArrowDownCircle, ArrowUpCircle, BarChart2, AlertTriangle, Pencil, Trash2 } from 'lucide-vue-next'
 import {
   Chart as ChartJS, Title, Tooltip, Legend,
   BarElement, CategoryScale, LinearScale, ArcElement
@@ -112,13 +113,21 @@ const openEdit = (l: Lancamento) => {
   showForm.value = true
 }
 
+const saveError = ref('')
 const saveForm = async () => {
-  if (editingId.value) {
-    await updateDoc(doc(db, 'financeiro', editingId.value), { ...form.value })
-  } else {
-    await addDoc(collection(db, 'financeiro'), { ...form.value })
+  saveError.value = ''
+  try {
+    if (editingId.value) {
+      await updateDoc(doc(db, 'financeiro', editingId.value), { ...form.value })
+    } else {
+      await addDoc(collection(db, 'financeiro'), { ...form.value })
+    }
+    showForm.value = false
+  } catch (e: any) {
+    saveError.value = e?.code === 'permission-denied'
+      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
+      : 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
-  showForm.value = false
 }
 
 const deleteRow = async (id: string) => {
@@ -143,20 +152,20 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
       <div class="subpage-divider"></div>
       <nav class="subpage-nav">
         <span class="subpage-nav-label">Principal</span>
-        <router-link to="/dashboard"><span class="subpage-nav-icon">📊</span>Dashboard</router-link>
+        <router-link to="/dashboard"><span class="subpage-nav-icon"><LayoutDashboard :size="16"/></span>Dashboard</router-link>
         <span class="subpage-nav-label">Módulos</span>
-        <router-link to="/agenda"><span class="subpage-nav-icon">📅</span>Agenda</router-link>
-        <router-link to="/estoques"><span class="subpage-nav-icon">📦</span>Estoque</router-link>
-        <router-link to="/pessoas"><span class="subpage-nav-icon">👥</span>Pessoas</router-link>
-        <router-link to="/financeiro"><span class="subpage-nav-icon">💰</span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon">✂️</span>Produção</router-link>
+        <router-link to="/agenda"><span class="subpage-nav-icon"><CalendarDays :size="16"/></span>Agenda</router-link>
+        <router-link to="/estoques"><span class="subpage-nav-icon"><Package :size="16"/></span>Estoque</router-link>
+        <router-link to="/pessoas"><span class="subpage-nav-icon"><Users :size="16"/></span>Pessoas</router-link>
+        <router-link to="/financeiro"><span class="subpage-nav-icon"><Wallet :size="16"/></span>Financeiro</router-link>
+        <router-link to="/vendas"><span class="subpage-nav-icon"><Scissors :size="16"/></span>Produção</router-link>
       </nav>
     </aside>
 
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
-          <h1>💰 Financeiro</h1>
+          <h1>Financeiro</h1>
           <span class="subpage-breadcrumb">Sistema / Financeiro</span>
         </div>
         <div class="subpage-user-chip">
@@ -167,22 +176,22 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
 
       <div class="mod-stats">
         <div class="mod-stat green">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📥</span><span class="mod-stat-label">Receitas</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><ArrowDownCircle :size="18"/></span><span class="mod-stat-label">Receitas</span></div>
           <strong>{{ fmt(totalReceitas) }}</strong>
           <span>Total Recebido</span>
         </div>
         <div class="mod-stat red">
-          <div class="mod-stat-top"><span class="mod-stat-icon">📤</span><span class="mod-stat-label">Despesas</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><ArrowUpCircle :size="18"/></span><span class="mod-stat-label">Despesas</span></div>
           <strong>{{ fmt(totalDespesas) }}</strong>
           <span>Total Pago</span>
         </div>
         <div class="mod-stat" :class="saldo >= 0 ? 'blue' : 'red'">
-          <div class="mod-stat-top"><span class="mod-stat-icon">💹</span><span class="mod-stat-label">Saldo</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><BarChart2 :size="18"/></span><span class="mod-stat-label">Saldo</span></div>
           <strong>{{ fmt(saldo) }}</strong>
           <span>Saldo do Período</span>
         </div>
         <div class="mod-stat yellow">
-          <div class="mod-stat-top"><span class="mod-stat-icon">⚠️</span><span class="mod-stat-label">Vencido</span></div>
+          <div class="mod-stat-top"><span class="mod-stat-icon"><AlertTriangle :size="18"/></span><span class="mod-stat-label">Vencido</span></div>
           <strong>{{ fmt(totalVencido) }}</strong>
           <span>Em Atraso</span>
         </div>
@@ -240,6 +249,7 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
             <button class="save" @click="saveForm">Salvar</button>
             <button class="cancel" @click="showForm = false">Cancelar</button>
           </div>
+          <p v-if="saveError" class="save-error">⚠️ {{ saveError }}</p>
         </div>
 
         <table class="mod-table">
@@ -258,8 +268,8 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
               <td><span class="mod-badge" :class="statusBadge(l.status)">{{ l.status }}</span></td>
               <td>
                 <div class="mod-actions">
-                  <button class="mod-btn-icon edit" @click="openEdit(l)">✏️ Editar</button>
-                  <button class="mod-btn-icon danger" @click="deleteRow(l.id)">🗑️ Excluir</button>
+                  <button class="mod-btn-icon edit" @click="openEdit(l)"><Pencil :size="13"/> Editar</button>
+                  <button class="mod-btn-icon danger" @click="deleteRow(l.id)"><Trash2 :size="13"/> Excluir</button>
                 </div>
               </td>
             </tr>
