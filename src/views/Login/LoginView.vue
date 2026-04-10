@@ -86,10 +86,7 @@ const login = async () => {
             {{ loading ? 'Entrando...' : 'Entrar no sistema' }}
           </button>
 
-          <div class="hint-box">
-            Credenciais de demo:<br />
-            <strong>admin@jeans.com</strong> / <strong>123456</strong>
-          </div>
+        
 
           <p v-if="error" class="error-message">{{ error }}</p>
         </form>
