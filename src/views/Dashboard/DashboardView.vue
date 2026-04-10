@@ -9,7 +9,6 @@ const authStore = useAuthStore()
 const isSidebarCollapsed = ref(false)
 const searchText = ref('')
 
-// ── Firestore listeners ────────────────────────────────────────────────────
 type Lancamento = { id: string; descricao: string; tipo: string; categoria: string; vencimento: string; valor: number; status: string }
 type Pessoa     = { id: string; tipo: string; ativo: boolean }
 type Item       = { id: string; referencia: string; cor: string; quantidade: number }
@@ -30,7 +29,6 @@ onMounted(() => {
 })
 onUnmounted(() => unsubs.forEach(u => u()))
 
-// ── Stats ──────────────────────────────────────────────────────────────────
 const totalReceitas  = computed(() => lancamentos.value.filter(l => l.tipo === 'Receita' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
 const totalDespesas  = computed(() => lancamentos.value.filter(l => l.tipo === 'Despesa' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
 const saldo          = computed(() => totalReceitas.value - totalDespesas.value)
@@ -45,7 +43,6 @@ const valorProducao  = computed(() => producao.value.reduce((s, f) => s + (f.qtd
 
 const totalItensEstoque = computed(() => estoque.value.reduce((s, i) => s + (i.quantidade || 0), 0))
 
-// ── Tabela financeiro ──────────────────────────────────────────────────────
 const filteredLancamentos = computed(() => {
   const s = searchText.value.toLowerCase()
   return lancamentos.value
@@ -63,7 +60,6 @@ const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value 
 <template>
   <div class="dashboard-page">
 
-    <!-- SIDEBAR -->
     <aside :class="['dashboard-side', { collapsed: isSidebarCollapsed }]">
       <div class="brand">
         <div class="brand-logo">G</div>
@@ -99,10 +95,8 @@ const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value 
       </div>
     </aside>
 
-    <!-- MAIN -->
     <main class="dashboard-main">
 
-      <!-- TOP BAR -->
       <div class="top-bar">
         <div class="top-bar-left">
           <button class="menu-btn" @click="toggleMenu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
@@ -120,7 +114,6 @@ const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value 
         </div>
       </div>
 
-      <!-- STATS: FINANCEIRO -->
       <div class="dash-section-title">Financeiro</div>
       <div class="stats-grid">
         <div class="stat-card">
@@ -145,7 +138,6 @@ const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value 
         </div>
       </div>
 
-      <!-- STATS: MÓDULOS -->
       <div class="dash-section-title">Módulos</div>
       <div class="stats-grid">
         <div class="stat-card">
@@ -170,7 +162,6 @@ const toggleMenu = () => { isSidebarCollapsed.value = !isSidebarCollapsed.value 
         </div>
       </div>
 
-      <!-- TABELA LANÇAMENTOS -->
       <div class="table-panel">
         <div class="panel-header">
           <span class="panel-title">Lançamentos Financeiros</span>

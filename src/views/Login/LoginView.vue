@@ -20,7 +20,6 @@ const login = async () => {
   error.value = ''
 
   try {
-    // Tenta fazer login; se o usuário não existir ainda, cria automaticamente
     try {
       await signInWithEmailAndPassword(auth, email.value, password.value)
     } catch (e: any) {
@@ -30,7 +29,6 @@ const login = async () => {
         throw e
       }
     }
-    // onAuthStateChanged em main.ts atualiza o authStore automaticamente
     await router.push('/dashboard')
   } catch (e: any) {
     const msgs: Record<string, string> = {
@@ -47,7 +45,6 @@ const login = async () => {
 
 <template>
   <div class="login-container">
-    <!-- Lado esquerdo: branding -->
     <div class="login-branding">
       <div class="branding-logo">G</div>
       <div class="branding-title">Gestão Jeans</div>
@@ -60,7 +57,6 @@ const login = async () => {
       </ul>
     </div>
 
-    <!-- Lado direito: formulário -->
     <div class="login-form-side">
       <div class="login-box">
         <div class="login-box-header">
