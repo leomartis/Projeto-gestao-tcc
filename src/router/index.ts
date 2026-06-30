@@ -8,16 +8,24 @@ import FinanceiroView from '../views/Financeiro/FinanceiroView.vue'
 import VendasView from '../views/Vendas/VendasView.vue'
 import LoginView from '../views/Login/LoginView.vue'
 import DashboardView from '../views/Dashboard/DashboardView.vue'
+import AppLayout from '../layouts/AppLayout.vue'
 
 const routes: RouteRecordRaw[] = [
-  { path: '/',          name: 'home',       component: LoginView },
-  { path: '/login',     name: 'login',      component: LoginView },
-  { path: '/dashboard', name: 'dashboard',  component: DashboardView,  meta: { requiresAuth: true } },
-  { path: '/agenda',    name: 'agenda',     component: AgendaView,     meta: { requiresAuth: true } },
-  { path: '/estoques',  name: 'estoques',   component: EstoquesView,   meta: { requiresAuth: true } },
-  { path: '/pessoas',   name: 'pessoas',    component: PessoasView,    meta: { requiresAuth: true } },
-  { path: '/financeiro',name: 'financeiro', component: FinanceiroView, meta: { requiresAuth: true } },
-  { path: '/vendas',    name: 'vendas',     component: VendasView,     meta: { requiresAuth: true } },
+  { path: '/',     name: 'home',  component: LoginView },
+  { path: '/login',name: 'login', component: LoginView },
+  {
+    path: '/',
+    component: AppLayout,
+    meta: { requiresAuth: true },
+    children: [
+      { path: 'dashboard',  name: 'dashboard',  component: DashboardView },
+      { path: 'agenda',     name: 'agenda',     component: AgendaView },
+      { path: 'estoques',   name: 'estoques',   component: EstoquesView },
+      { path: 'pessoas',    name: 'pessoas',    component: PessoasView },
+      { path: 'financeiro', name: 'financeiro', component: FinanceiroView },
+      { path: 'vendas',     name: 'vendas',     component: VendasView },
+    ]
+  },
 ]
 
 const router = createRouter({

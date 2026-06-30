@@ -5,7 +5,7 @@ import { db } from '../../firebase'
 import {
   collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 } from 'firebase/firestore'
-import { LayoutDashboard, CalendarDays, Package, Users, Wallet, Scissors, Clock, AlertTriangle, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
+import { Clock, AlertTriangle, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
@@ -94,27 +94,6 @@ const deleteRow = async (id: string) => {
 
 <template>
   <div class="subpage-layout">
-    <aside class="subpage-sidebar">
-      <div class="subpage-brand">
-        <div class="subpage-brand-logo">G</div>
-        <div>
-          <span class="subpage-brand-title">Gestão Jeans</span>
-          <span class="subpage-brand-sub">Sistema</span>
-        </div>
-      </div>
-      <div class="subpage-divider"></div>
-      <nav class="subpage-nav">
-        <span class="subpage-nav-label">Principal</span>
-        <router-link to="/dashboard"><span class="subpage-nav-icon"><LayoutDashboard :size="16"/></span>Dashboard</router-link>
-        <span class="subpage-nav-label">Módulos</span>
-        <router-link to="/agenda"><span class="subpage-nav-icon"><CalendarDays :size="16"/></span>Agenda</router-link>
-        <router-link to="/estoques"><span class="subpage-nav-icon"><Package :size="16"/></span>Estoque</router-link>
-        <router-link to="/pessoas"><span class="subpage-nav-icon"><Users :size="16"/></span>Pessoas</router-link>
-        <router-link to="/financeiro"><span class="subpage-nav-icon"><Wallet :size="16"/></span>Financeiro</router-link>
-        <router-link to="/vendas"><span class="subpage-nav-icon"><Scissors :size="16"/></span>Produção</router-link>
-      </nav>
-    </aside>
-
     <main class="subpage-main">
       <div class="subpage-header">
         <div class="subpage-title-group">
