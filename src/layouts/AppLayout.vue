@@ -99,7 +99,7 @@ const logout = async () => {
   background: #f5f5f5;
 }
 
-/* ── ICON SIDEBAR ────────────────────────────────────────── */
+/* ICON SIDEBAR */
 .icon-sb {
   width: 56px;
   background: #fff;
@@ -143,7 +143,7 @@ const logout = async () => {
   font-size: 0.65rem; font-weight: 700; cursor: pointer;
 }
 
-/* ── CONTENT WRAP ────────────────────────────────────────── */
+/* CONTENT WRAP */
 .content-wrap {
   flex: 1;
   min-width: 0;
@@ -152,7 +152,7 @@ const logout = async () => {
   overflow: hidden;
 }
 
-/* ── TOP NAV ─────────────────────────────────────────────── */
+/* TOP NAV */
 .top-nav {
   height: 54px;
   background: #fff;
@@ -229,14 +229,14 @@ const logout = async () => {
 .tn-user-name  { font-size: 0.75rem; font-weight: 600; color: #111827; white-space: nowrap; }
 .tn-user-email { font-size: 0.62rem; color: #9ca3af; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
 
-/* ── PAGE AREA ───────────────────────────────────────────── */
+/* PAGE AREA */
 .page-area {
   flex: 1;
   overflow: hidden;
   display: flex;
 }
 
-/* ── RESPONSIVE ──────────────────────────────────────────── */
+/* RESPONSIVE */
 @media (max-width: 900px) {
   .tn-links { display: none; }
 }

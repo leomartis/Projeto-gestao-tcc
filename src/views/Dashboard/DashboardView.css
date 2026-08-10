@@ -1,6 +1,4 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-/* ── PAGE ────────────────────────────────────────────────── */
+/* Page */
 .db-page {
   flex: 1;
   overflow-y: auto;
@@ -12,7 +10,7 @@
   background: #f5f5f5;
 }
 
-/* ── GREETING ────────────────────────────────────────────── */
+/* Greeting */
 .db-greeting {
   display: flex;
   justify-content: space-between;
@@ -44,14 +42,14 @@
   border-radius: 8px;
 }
 
-/* ── TOP GRID ────────────────────────────────────────────── */
+/* Top grid */
 .db-top-grid {
   display: grid;
   grid-template-columns: 256px 1fr 230px;
   gap: 14px;
 }
 
-/* ── BALANCE CARD ────────────────────────────────────────── */
+/* Balance card */
 .balance-card {
   background: #fff;
   border-radius: 14px;
@@ -138,7 +136,7 @@
 
 .bwi-amount { font-size: 0.82rem; font-weight: 700; color: #111827; }
 
-/* ── 2x2 STATS ───────────────────────────────────────────── */
+/* Stat cards */
 .stats-2x2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -181,7 +179,7 @@
 .ss-change.neg   { color: #ef4444; }
 .ss-change.pos-w { color: rgba(255,255,255,0.9); }
 
-/* ── PROFIT & LOSS CHART ─────────────────────────────────── */
+/* Profit and loss chart */
 .pl-card {
   background: #fff;
   border-radius: 14px;
@@ -206,7 +204,7 @@
 
 .pl-chart-wrap { flex: 1; min-height: 120px; }
 
-/* ── BOTTOM GRID ─────────────────────────────────────────── */
+/* Bottom grid */
 .db-bottom-grid {
   display: grid;
   grid-template-columns: 256px 1fr;
@@ -245,7 +243,7 @@
   font-size: 0.66rem; color: #9ca3af;
 }
 
-/* Produção section */
+/* Production section */
 .prod-section {
   background: #fff;
   border-radius: 14px;
@@ -295,7 +293,7 @@
 .dark-card .pcard-val { color: #fff; }
 .orange-card-light .pcard-val { color: #92400e; }
 
-/* ── ACTIVITIES CARD ─────────────────────────────────────── */
+/* Activities card */
 .activities-card {
   background: #fff;
   border-radius: 14px;
@@ -390,7 +388,7 @@
 .act-badge.orange { background: #fff7ed; color: #c2410c; }
 .act-badge.red    { background: #fee2e2; color: #b91c1c; }
 
-/* ── RESPONSIVE ──────────────────────────────────────────── */
+/* Responsive */
 @media (max-width: 1300px) {
   .db-top-grid    { grid-template-columns: 240px 1fr; }
   .pl-card        { display: none; }

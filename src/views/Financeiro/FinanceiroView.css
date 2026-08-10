@@ -1,38 +1,37 @@
-/* Estilos específicos do Financeiro */
-
 .fin-charts {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
 }
 
-@media (max-width: 900px) {
-  .fin-charts { grid-template-columns: 1fr; }
-}
-
 .fin-chart-card {
-  background: #fff;
-  border: 1px solid #e8eaed;
-  border-radius: 12px;
   padding: 20px;
+  border: 1px solid #e8eaed;
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
 }
 
 .fin-chart-title {
+  margin-bottom: 16px;
+  color: var(--color-heading);
   font-size: 0.87rem;
   font-weight: 700;
-  color: #111827;
-  margin-bottom: 16px;
 }
 
 .fin-chart-wrap {
-  height: 240px;
   position: relative;
+  height: 240px;
 }
 
 .fin-chart-wrap--donut {
-  height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .fin-charts {
+    grid-template-columns: 1fr;
+  }
 }
