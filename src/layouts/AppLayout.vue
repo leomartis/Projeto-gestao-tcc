@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/authStore'
 const authStore = useAuthStore()
+const router = useRouter()
 const initials = () => authStore.user?.email?.slice(0, 2).toUpperCase() ?? 'GJ'
-const logout = async () => {
-  const { signOut } = await import('firebase/auth')
-  const { auth } = await import('../firebase')
-  await signOut(auth)
+const logout = () => {
+  authStore.logout()
+  router.push('/login')
 }
 </script>
 

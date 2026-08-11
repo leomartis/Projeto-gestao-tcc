@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
-} from 'firebase/firestore'
+import { api } from '../../api/client'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { ArrowDownCircle, ArrowUpCircle, BarChart2, AlertTriangle, Pencil, Trash2 } from 'lucide-vue-next'
 import {
@@ -17,9 +14,9 @@ ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale,
 const authStore = useAuthStore()
 
 type Lancamento = {
-  id: string
+  id: number
   descricao: string
-  tipo: 'Receita' | 'Despesa'
+  tipo: 'Receita' | 'Despesa' | 'Investimento'
   categoria: string
   vencimento: string
   valor: number
@@ -27,18 +24,15 @@ type Lancamento = {
 }
 
 const lancamentos = ref<Lancamento[]>([])
-let unsub: (() => void) | null = null
 
-onMounted(() => {
-  unsub = onSnapshot(collection(db, 'financeiro'), snap => {
-    lancamentos.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Lancamento))
-  })
-})
+const load = async () => {
+  lancamentos.value = await api.get<Lancamento[]>('/financeiro')
+}
 
-onUnmounted(() => unsub?.())
+onMounted(load)
 
 const showForm = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const searchText = ref('')
 const filterTipo = ref('Todos')
 const filterStatus = ref('Todos')
@@ -118,21 +112,21 @@ const saveForm = async () => {
   saveError.value = ''
   try {
     if (editingId.value) {
-      await updateDoc(doc(db, 'financeiro', editingId.value), { ...form.value })
+      await api.put(`/financeiro/${editingId.value}`, form.value)
     } else {
-      await addDoc(collection(db, 'financeiro'), { ...form.value })
+      await api.post('/financeiro', form.value)
     }
     showForm.value = false
+    await load()
   } catch (e: any) {
-    saveError.value = e?.code === 'permission-denied'
-      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
-      : 'Erro ao salvar: ' + (e?.message ?? String(e))
+    saveError.value = 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
 }
 
-const deleteRow = async (id: string) => {
+const deleteRow = async (id: number) => {
   if (confirm('Excluir este lançamento?')) {
-    await deleteDoc(doc(db, 'financeiro', id))
+    await api.delete(`/financeiro/${id}`)
+    await load()
   }
 }
 

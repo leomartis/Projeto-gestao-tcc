@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
-} from 'firebase/firestore'
+import { api } from '../../api/client'
 import { Clock, AlertTriangle, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
 type Compromisso = {
-  id: string
+  id: number
   titulo: string
   data: string
   hora: string
@@ -21,18 +18,16 @@ type Compromisso = {
 }
 
 const compromissos = ref<Compromisso[]>([])
-let unsub: (() => void) | null = null
 
-onMounted(() => {
-  unsub = onSnapshot(collection(db, 'agenda'), snap => {
-    compromissos.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Compromisso))
-  })
-})
+const load = async () => {
+  const data = await api.get<Compromisso[]>('/agenda')
+  compromissos.value = data.map(c => ({ ...c, hora: c.hora.slice(0, 5) }))
+}
 
-onUnmounted(() => unsub?.())
+onMounted(load)
 
 const showForm = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const searchText = ref('')
 const filterStatus = ref('Todos')
 const filterTipo = ref('Todos')
@@ -73,21 +68,21 @@ const saveForm = async () => {
   saveError.value = ''
   try {
     if (editingId.value) {
-      await updateDoc(doc(db, 'agenda', editingId.value), { ...form.value })
+      await api.put(`/agenda/${editingId.value}`, form.value)
     } else {
-      await addDoc(collection(db, 'agenda'), { ...form.value })
+      await api.post('/agenda', form.value)
     }
     showForm.value = false
+    await load()
   } catch (e: any) {
-    saveError.value = e?.code === 'permission-denied'
-      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
-      : 'Erro ao salvar: ' + (e?.message ?? String(e))
+    saveError.value = 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
 }
 
-const deleteRow = async (id: string) => {
+const deleteRow = async (id: number) => {
   if (confirm('Excluir este compromisso?')) {
-    await deleteDoc(doc(db, 'agenda', id))
+    await api.delete(`/agenda/${id}`)
+    await load()
   }
 }
 </script>

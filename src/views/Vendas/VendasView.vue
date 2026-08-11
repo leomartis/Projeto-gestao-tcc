@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
-} from 'firebase/firestore'
+import { api } from '../../api/client'
 import { Send, Download, Clock, DollarSign, Settings, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
@@ -13,7 +10,7 @@ const metaDiaria = ref(1850)
 const showConfig = ref(false)
 
 type Faccao = {
-  id: string
+  id: number
   data: string
   firma: string
   discriminacao: string
@@ -24,18 +21,15 @@ type Faccao = {
 }
 
 const registros = ref<Faccao[]>([])
-let unsub: (() => void) | null = null
 
-onMounted(() => {
-  unsub = onSnapshot(collection(db, 'producao'), s => {
-    registros.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Faccao))
-  })
-})
+const load = async () => {
+  registros.value = await api.get<Faccao[]>('/producao')
+}
 
-onUnmounted(() => unsub?.())
+onMounted(load)
 
 const showForm = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const searchText = ref('')
 
 const emptyForm = (): Omit<Faccao, 'id'> => ({
@@ -98,21 +92,21 @@ const saveForm = async () => {
   saveError.value = ''
   try {
     if (editingId.value) {
-      await updateDoc(doc(db, 'producao', editingId.value), { ...form.value })
+      await api.put(`/producao/${editingId.value}`, form.value)
     } else {
-      await addDoc(collection(db, 'producao'), { ...form.value })
+      await api.post('/producao', form.value)
     }
     showForm.value = false
+    await load()
   } catch (e: any) {
-    saveError.value = e?.code === 'permission-denied'
-      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
-      : 'Erro ao salvar: ' + (e?.message ?? String(e))
+    saveError.value = 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
 }
 
-const deleteRow = async (id: string) => {
+const deleteRow = async (id: number) => {
   if (confirm('Excluir este registro?')) {
-    await deleteDoc(doc(db, 'producao', id))
+    await api.delete(`/producao/${id}`)
+    await load()
   }
 }
 

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import { collection, onSnapshot } from 'firebase/firestore'
+import { api } from '../../api/client'
 import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
@@ -13,24 +12,28 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const authStore = useAuthStore()
 
-type Lancamento = { id: string; descricao: string; tipo: string; categoria: string; vencimento: string; valor: number; status: string }
-type Pessoa     = { id: string; nome?: string; tipo: string; ativo: boolean }
-type Item       = { id: string; referencia: string; cor: string; quantidade: number }
-type Faccao     = { id: string; qtdEnviada: number; qtdRecebida: number; precoPeca: number; data: string; firma?: string }
+type Lancamento = { id: number; descricao: string; tipo: string; categoria: string; vencimento: string; valor: number; status: string }
+type Pessoa     = { id: number; nome?: string; tipo: string; ativo: boolean }
+type Item       = { id: number; referencia: string; cor: string; quantidade: number }
+type Faccao     = { id: number; qtdEnviada: number; qtdRecebida: number; precoPeca: number; data: string; firma?: string }
 
 const lancamentos = ref<Lancamento[]>([])
 const pessoas     = ref<Pessoa[]>([])
 const estoque     = ref<Item[]>([])
 const producao    = ref<Faccao[]>([])
-const unsubs: (() => void)[] = []
 
-onMounted(() => {
-  unsubs.push(onSnapshot(collection(db, 'financeiro'), s => { lancamentos.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Lancamento)) }))
-  unsubs.push(onSnapshot(collection(db, 'pessoas'),    s => { pessoas.value     = s.docs.map(d => ({ id: d.id, ...d.data() } as Pessoa)) }))
-  unsubs.push(onSnapshot(collection(db, 'estoque'),    s => { estoque.value     = s.docs.map(d => ({ id: d.id, ...d.data() } as Item)) }))
-  unsubs.push(onSnapshot(collection(db, 'producao'),   s => { producao.value    = s.docs.map(d => ({ id: d.id, ...d.data() } as Faccao)) }))
+onMounted(async () => {
+  const [f, p, e, pr] = await Promise.all([
+    api.get<Lancamento[]>('/financeiro'),
+    api.get<Pessoa[]>('/pessoas'),
+    api.get<Item[]>('/estoque'),
+    api.get<Faccao[]>('/producao'),
+  ])
+  lancamentos.value = f
+  pessoas.value     = p
+  estoque.value     = e
+  producao.value    = pr
 })
-onUnmounted(() => unsubs.forEach(u => u()))
 
 const totalReceitas     = computed(() => lancamentos.value.filter(l => l.tipo === 'Receita' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
 const totalDespesas     = computed(() => lancamentos.value.filter(l => l.tipo === 'Despesa' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
@@ -94,7 +97,7 @@ const recentActivities = computed(() => lancamentos.value.slice(0, 8))
 const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 const statusColor = (s: string) => s === 'Pago' ? 'green' : s === 'Pendente' ? 'orange' : 'red'
 const statusIcon  = (s: string) => s === 'Pago' ? '●' : s === 'Pendente' ? '◉' : '○'
-const padId = (id: string) => 'INV_' + id.slice(0, 6).toUpperCase().padEnd(6, '0')
+const padId = (id: number) => 'INV_' + String(id).padStart(6, '0')
 </script>
 
 <template>

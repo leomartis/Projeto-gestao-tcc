@@ -1,34 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
-} from 'firebase/firestore'
+import { api } from '../../api/client'
 import { ClipboardList, CheckSquare, XCircle, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
 type Item = {
-  id: string
+  id: number
   referencia: string
   cor: string
   quantidade: number
 }
 
 const itens = ref<Item[]>([])
-let unsub: (() => void) | null = null
 
-onMounted(() => {
-  unsub = onSnapshot(collection(db, 'estoque'), s => {
-    itens.value = s.docs.map(d => ({ id: d.id, ...d.data() } as Item))
-  })
-})
+const load = async () => {
+  itens.value = await api.get<Item[]>('/estoque')
+}
 
-onUnmounted(() => unsub?.())
+onMounted(load)
 
 const showForm = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const searchText = ref('')
 
 const emptyForm = (): Omit<Item, 'id'> => ({ referencia: '', cor: '', quantidade: 0 })
@@ -59,21 +53,21 @@ const saveForm = async () => {
   saveError.value = ''
   try {
     if (editingId.value) {
-      await updateDoc(doc(db, 'estoque', editingId.value), { ...form.value })
+      await api.put(`/estoque/${editingId.value}`, form.value)
     } else {
-      await addDoc(collection(db, 'estoque'), { ...form.value })
+      await api.post('/estoque', form.value)
     }
     showForm.value = false
+    await load()
   } catch (e: any) {
-    saveError.value = e?.code === 'permission-denied'
-      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
-      : 'Erro ao salvar: ' + (e?.message ?? String(e))
+    saveError.value = 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
 }
 
-const deleteRow = async (id: string) => {
+const deleteRow = async (id: number) => {
   if (confirm('Excluir este item?')) {
-    await deleteDoc(doc(db, 'estoque', id))
+    await api.delete(`/estoque/${id}`)
+    await load()
   }
 }
 

@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/authStore'
-import { db } from '../../firebase'
-import {
-  collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc
-} from 'firebase/firestore'
+import { api } from '../../api/client'
 import { UserRound, Building2, HardHat, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
 
 type Pessoa = {
-  id: string
+  id: number
   nome: string
   tipo: 'Cliente' | 'Fornecedor' | 'Colaborador'
   email: string
@@ -20,18 +17,15 @@ type Pessoa = {
 }
 
 const pessoas = ref<Pessoa[]>([])
-let unsub: (() => void) | null = null
 
-onMounted(() => {
-  unsub = onSnapshot(collection(db, 'pessoas'), snap => {
-    pessoas.value = snap.docs.map(d => ({ id: d.id, ...d.data() } as Pessoa))
-  })
-})
+const load = async () => {
+  pessoas.value = await api.get<Pessoa[]>('/pessoas')
+}
 
-onUnmounted(() => unsub?.())
+onMounted(load)
 
 const showForm = ref(false)
-const editingId = ref<string | null>(null)
+const editingId = ref<number | null>(null)
 const searchText = ref('')
 const filterTipo = ref('Todos')
 
@@ -68,21 +62,21 @@ const saveForm = async () => {
   saveError.value = ''
   try {
     if (editingId.value) {
-      await updateDoc(doc(db, 'pessoas', editingId.value), { ...form.value })
+      await api.put(`/pessoas/${editingId.value}`, form.value)
     } else {
-      await addDoc(collection(db, 'pessoas'), { ...form.value })
+      await api.post('/pessoas', form.value)
     }
     showForm.value = false
+    await load()
   } catch (e: any) {
-    saveError.value = e?.code === 'permission-denied'
-      ? 'Sem permissão. Verifique as regras do Firestore ou faça login novamente.'
-      : 'Erro ao salvar: ' + (e?.message ?? String(e))
+    saveError.value = 'Erro ao salvar: ' + (e?.message ?? String(e))
   }
 }
 
-const deleteRow = async (id: string) => {
+const deleteRow = async (id: number) => {
   if (confirm('Excluir este cadastro?')) {
-    await deleteDoc(doc(db, 'pessoas', id))
+    await api.delete(`/pessoas/${id}`)
+    await load()
   }
 }
 </script>
