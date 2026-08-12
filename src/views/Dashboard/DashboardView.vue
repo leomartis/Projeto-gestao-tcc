@@ -77,8 +77,8 @@ const chartData = computed(() => {
   return {
     labels: _months,
     datasets: [
-      { label: 'Receitas', data: receitas, backgroundColor: '#f97316', borderRadius: 4, borderSkipped: false },
-      { label: 'Despesas', data: despesas, backgroundColor: '#1a1a1a', borderRadius: 4, borderSkipped: false },
+      { label: 'Receitas', data: receitas, backgroundColor: '#1c5a47', borderRadius: 4, borderSkipped: false },
+      { label: 'Despesas', data: despesas, backgroundColor: '#0c2f25', borderRadius: 4, borderSkipped: false },
     ]
   }
 })
@@ -257,7 +257,7 @@ const padId = (id: number) => 'INV_' + String(id).padStart(6, '0')
             <span class="sc-pct">{{ spendingPct }}%</span>
           </div>
           <div class="spending-bar-wrap">
-            <div class="spending-bar" :style="{ width: spendingPct + '%', background: spendingPct > 80 ? '#ef4444' : '#f97316' }"></div>
+            <div class="spending-bar" :style="{ width: spendingPct + '%', background: spendingPct > 80 ? 'var(--neg)' : 'var(--warn)' }"></div>
           </div>
           <div class="spending-footer">
             <span>{{ fmt(0) }}</span>

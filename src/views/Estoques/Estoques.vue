@@ -209,6 +209,6 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
 .ref-code { font-size: 0.83rem; background: #f3f4f6; padding: 2px 8px; border-radius: 5px; font-weight: 600; color: #374151; }
 .cor-cell { display: flex; align-items: center; gap: 8px; }
 .cor-dot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid #e5e7eb; flex-shrink: 0; }
-.total-row td { background: #111827; color: #fff; font-weight: 700; padding: 10px 16px; border-top: 2px solid #1f2937; }
-.total-label { color: #9ca3af; font-size: 0.83rem; }
+.total-row td { background: var(--green-900); color: #fff; font-weight: 700; padding: 10px 16px; border-top: 2px solid var(--green-800); }
+.total-label { color: var(--green-300); font-size: 0.83rem; }
 </style>
