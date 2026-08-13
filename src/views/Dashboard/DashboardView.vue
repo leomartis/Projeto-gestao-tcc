@@ -1,363 +1,351 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/authStore'
+import { ref, computed, onMounted } from 'vue'
 import { api } from '../../api/client'
-import { Bar } from 'vue-chartjs'
+import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS, CategoryScale, LinearScale,
-  BarElement, Title, Tooltip, Legend
+  LineElement, PointElement, Title, Tooltip, Filler
 } from 'chart.js'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, LineElement, PointElement, Title, Tooltip, Filler)
 
-const authStore = useAuthStore()
-
-type Lancamento = { id: number; descricao: string; tipo: string; categoria: string; vencimento: string; valor: number; status: string }
-type Pessoa     = { id: number; nome?: string; tipo: string; ativo: boolean }
+type Lancamento = { id: number; descricao: string; tipo: 'Receita' | 'Despesa' | 'Investimento'; categoria: string; vencimento: string; valor: number; status: 'Pago' | 'Pendente' | 'Vencido' }
 type Item       = { id: number; referencia: string; cor: string; quantidade: number }
-type Faccao     = { id: number; qtdEnviada: number; qtdRecebida: number; precoPeca: number; data: string; firma?: string }
+type Faccao     = { id: number; data: string; firma: string; discriminacao: string; nCorte: string; qtdEnviada: number; qtdRecebida: number; precoPeca: number }
 
 const lancamentos = ref<Lancamento[]>([])
-const pessoas     = ref<Pessoa[]>([])
 const estoque     = ref<Item[]>([])
 const producao    = ref<Faccao[]>([])
+const loading     = ref(false)
 
-onMounted(async () => {
-  const [f, p, e, pr] = await Promise.all([
+const toISODate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const firstDayOfMonth = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), 1)
+const lastDayOfMonth  = (d = new Date()) => new Date(d.getFullYear(), d.getMonth() + 1, 0)
+
+const inicio = ref(toISODate(firstDayOfMonth()))
+const fim    = ref(toISODate(lastDayOfMonth()))
+const busca  = ref('')
+
+const load = async () => {
+  loading.value = true
+  const [f, e, p] = await Promise.all([
     api.get<Lancamento[]>('/financeiro'),
-    api.get<Pessoa[]>('/pessoas'),
     api.get<Item[]>('/estoque'),
     api.get<Faccao[]>('/producao'),
   ])
   lancamentos.value = f
-  pessoas.value     = p
-  estoque.value     = e
-  producao.value    = pr
+  estoque.value = e
+  producao.value = p
+  loading.value = false
+}
+
+onMounted(load)
+
+function parseDate(s: string): Date {
+  if (!s) return new Date(NaN)
+  if (s.includes('/')) {
+    const [d, m, y] = s.split('/').map(Number)
+    return new Date(y, m - 1, d)
+  }
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r }
+const sum = (arr: number[]) => arr.reduce((s, v) => s + v, 0)
+
+const hoje       = computed(() => startOfDay(new Date()))
+const inicioDate = computed(() => parseDate(inicio.value))
+const fimDate    = computed(() => parseDate(fim.value))
+
+const buscaMatch = (textos: (string | undefined)[]) => {
+  const q = busca.value.trim().toLowerCase()
+  if (!q) return true
+  return textos.some(t => (t || '').toLowerCase().includes(q))
+}
+
+const lancamentosNoPeriodo = computed(() => lancamentos.value.filter(l => {
+  const d = parseDate(l.vencimento)
+  return d >= inicioDate.value && d <= fimDate.value && buscaMatch([l.descricao, l.categoria, l.tipo])
+}))
+
+const producaoNoPeriodo = computed(() => producao.value.filter(p => {
+  const d = parseDate(p.data)
+  return d >= inicioDate.value && d <= fimDate.value && buscaMatch([p.firma, p.discriminacao, p.nCorte])
+}))
+
+const recebidoClientes = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Receita' && l.status === 'Pago').map(l => l.valor)))
+const pagoFornecedores = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Despesa' && l.status === 'Pago').map(l => l.valor)))
+const saldoRealizado   = computed(() => recebidoClientes.value - pagoFornecedores.value)
+
+const aReceberPeriodo = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Receita' && l.status !== 'Pago').map(l => l.valor)))
+const aReceberVencido = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Receita' && l.status === 'Vencido').map(l => l.valor)))
+const aPagarPeriodo   = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Despesa' && l.status !== 'Pago').map(l => l.valor)))
+const aPagarVencido   = computed(() => sum(lancamentosNoPeriodo.value.filter(l => l.tipo === 'Despesa' && l.status === 'Vencido').map(l => l.valor)))
+
+const saldoProjetado = computed(() => saldoRealizado.value + aReceberPeriodo.value - aPagarPeriodo.value)
+
+const fmt     = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const fmtDate = (d: Date) => d.toLocaleDateString('pt-BR')
+
+type Bucket = { label: string; key: string; count: number; total: number }
+
+function buildBuckets(tipo: 'Receita' | 'Despesa'): Bucket[] {
+  const items = lancamentos.value.filter(l => l.tipo === tipo && l.status !== 'Pago')
+  const h = hoje.value
+  const amanha = addDays(h, 1)
+  const semana = addDays(h, 7)
+
+  const isAtraso = (l: Lancamento) => l.status === 'Vencido' || parseDate(l.vencimento) < h
+  const isHoje   = (l: Lancamento) => !isAtraso(l) && +parseDate(l.vencimento) === +h
+  const isAmanha = (l: Lancamento) => !isAtraso(l) && +parseDate(l.vencimento) === +amanha
+  const isSemana = (l: Lancamento) => { const d = parseDate(l.vencimento); return !isAtraso(l) && d >= h && d <= semana }
+  const isMes    = (l: Lancamento) => { const d = parseDate(l.vencimento); return !isAtraso(l) && d.getFullYear() === h.getFullYear() && d.getMonth() === h.getMonth() }
+
+  const make = (label: string, key: string, filterFn: (l: Lancamento) => boolean): Bucket => {
+    const f = items.filter(filterFn)
+    return { label, key, count: f.length, total: sum(f.map(l => l.valor)) }
+  }
+
+  return [
+    make('Hoje', 'hoje', isHoje),
+    make('Amanhã', 'amanha', isAmanha),
+    make('Esta semana', 'semana', isSemana),
+    make('Este mês', 'mes', isMes),
+    make('Em atraso', 'atraso', isAtraso),
+  ]
+}
+
+const contasAPagar   = computed(() => buildBuckets('Despesa'))
+const contasAReceber = computed(() => buildBuckets('Receita'))
+
+const pecasEnviadas  = computed(() => sum(producaoNoPeriodo.value.map(p => p.qtdEnviada)))
+const pecasRecebidas = computed(() => sum(producaoNoPeriodo.value.map(p => p.qtdRecebida)))
+const pecasPendentes = computed(() => Math.max(0, pecasEnviadas.value - pecasRecebidas.value))
+const custoFaccao    = computed(() => sum(producaoNoPeriodo.value.map(p => p.qtdRecebida * p.precoPeca)))
+const totalEstoque   = computed(() => sum(estoque.value.map(i => i.quantidade)))
+
+const planoDeContas = computed(() => {
+  const despesas = lancamentosNoPeriodo.value.filter(l => l.tipo === 'Despesa')
+  const map = new Map<string, number>()
+  despesas.forEach(l => map.set(l.categoria, (map.get(l.categoria) || 0) + l.valor))
+  return [...map.entries()].map(([categoria, total]) => ({ categoria, total })).sort((a, b) => b.total - a.total)
 })
 
-const totalReceitas     = computed(() => lancamentos.value.filter(l => l.tipo === 'Receita' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
-const totalDespesas     = computed(() => lancamentos.value.filter(l => l.tipo === 'Despesa' && l.status === 'Pago').reduce((s, l) => s + l.valor, 0))
-const saldo             = computed(() => totalReceitas.value - totalDespesas.value)
-const totalRecebida     = computed(() => producao.value.reduce((s, f) => s + (f.qtdRecebida || 0), 0))
-const valorProducao     = computed(() => producao.value.reduce((s, f) => s + (f.qtdRecebida || 0) * (f.precoPeca || 0), 0))
-const totalItensEstoque = computed(() => estoque.value.reduce((s, i) => s + (i.quantidade || 0), 0))
-
-const spendingPct = computed(() => {
-  if (totalReceitas.value === 0) return 0
-  return Math.min(100, Math.round(totalDespesas.value / totalReceitas.value * 100))
+const centroCustoFaccao = computed(() => {
+  const map = new Map<string, number>()
+  producaoNoPeriodo.value.forEach(p => map.set(p.firma, (map.get(p.firma) || 0) + p.qtdRecebida * p.precoPeca))
+  return [...map.entries()].map(([firma, total]) => ({ firma, total })).sort((a, b) => b.total - a.total)
 })
-
-const userName = computed(() => {
-  const email = authStore.user?.email ?? ''
-  const name = email.split('@')[0]
-  return name.charAt(0).toUpperCase() + name.slice(1)
-})
-
-const greeting = computed(() => {
-  const h = new Date().getHours()
-  if (h < 12) return 'Bom dia'
-  if (h < 18) return 'Boa tarde'
-  return 'Boa noite'
-})
-
-const _months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const chartData = computed(() => {
-  const receitas = new Array(12).fill(0)
-  const despesas = new Array(12).fill(0)
-  lancamentos.value.forEach(l => {
-    if (!l.vencimento) return
-    const parts = l.vencimento.includes('/') ? l.vencimento.split('/') : l.vencimento.split('-')
-    const m = parts.length === 3 ? parseInt(parts[1]) - 1 : -1
-    if (m >= 0 && m < 12) {
-      if (l.tipo === 'Receita') receitas[m] += l.valor
-      else despesas[m] += l.valor
-    }
-  })
+  const labels: string[] = []
+  const data: number[] = []
+  let running = saldoRealizado.value
+  let d = new Date(inicioDate.value)
+  const end = fimDate.value
+  let guard = 0
+  while (d <= end && guard < 400) {
+    const dayStart = startOfDay(d)
+    const recebToday = sum(lancamentos.value.filter(l => l.tipo === 'Receita' && l.status !== 'Pago' && +startOfDay(parseDate(l.vencimento)) === +dayStart).map(l => l.valor))
+    const pagToday   = sum(lancamentos.value.filter(l => l.tipo === 'Despesa' && l.status !== 'Pago' && +startOfDay(parseDate(l.vencimento)) === +dayStart).map(l => l.valor))
+    running += recebToday - pagToday
+    labels.push(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }))
+    data.push(Number(running.toFixed(2)))
+    d = addDays(d, 1)
+    guard++
+  }
   return {
-    labels: _months,
-    datasets: [
-      { label: 'Receitas', data: receitas, backgroundColor: '#1c5a47', borderRadius: 4, borderSkipped: false },
-      { label: 'Despesas', data: despesas, backgroundColor: '#0c2f25', borderRadius: 4, borderSkipped: false },
-    ]
+    labels,
+    datasets: [{
+      label: 'Saldo projetado',
+      data,
+      borderColor: '#0c2f25',
+      backgroundColor: 'rgba(12,47,37,0.08)',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 0,
+      borderWidth: 2,
+    }]
   }
 })
 
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
-  plugins: { legend: { display: false } },
+  plugins: {
+    legend: { display: false },
+    tooltip: { callbacks: { label: (ctx: any) => fmt(ctx.parsed.y) } },
+  },
   scales: {
-    x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 } } },
-    y: { grid: { color: '#f3f4f6' }, border: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 } } }
-  }
+    x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 }, maxTicksLimit: 8 } },
+    y: { grid: { color: '#f3f4f6' }, border: { display: false }, ticks: { color: '#9ca3af', font: { size: 9 } } },
+  },
 }
 
-const recentActivities = computed(() => lancamentos.value.slice(0, 8))
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const statusColor = (s: string) => s === 'Pago' ? 'green' : s === 'Pendente' ? 'orange' : 'red'
-const statusIcon  = (s: string) => s === 'Pago' ? '●' : s === 'Pendente' ? '◉' : '○'
-const padId = (id: number) => 'INV_' + String(id).padStart(6, '0')
+const periodoLabel = computed(() => `${fmtDate(inicioDate.value)} a ${fmtDate(fimDate.value)}`)
 </script>
 
 <template>
-  <div class="db-page">
+  <div class="cf-page">
 
-    <!-- GREETING -->
-    <div class="db-greeting">
-      <div>
-        <h1 class="db-greeting-title">{{ greeting }}, {{ userName }}</h1>
-        <p class="db-greeting-sub">Acompanhe seus lançamentos, produção e status do estoque.</p>
+    <div class="cf-header">
+      <div class="cf-title-group">
+        <span class="cf-eyebrow">Painel gerencial</span>
+        <h1 class="cf-title">Fluxo de caixa</h1>
       </div>
-      <div class="db-greeting-meta">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <span>Última atualização: hoje</span>
+      <div class="cf-filters">
+        <div class="cf-field">
+          <label>Início</label>
+          <input type="date" v-model="inicio" />
+        </div>
+        <div class="cf-field">
+          <label>Fim</label>
+          <input type="date" v-model="fim" />
+        </div>
+        <div class="cf-field cf-field--search">
+          <label>Busca</label>
+          <input type="text" v-model="busca" placeholder="Descrição, categoria, tipo..." />
+        </div>
+        <button class="cf-btn-primary" type="button" :disabled="loading" @click="load">
+          {{ loading ? 'Atualizando...' : 'Atualizar' }}
+        </button>
       </div>
     </div>
 
-    <!-- TOP 3-COLUMN GRID -->
-    <div class="db-top-grid">
-
-      <!-- Balance card -->
-      <div class="balance-card">
-        <div class="bc-head">
-          <span class="bc-label">Saldo Total</span>
-          <span class="bc-currency">BRL</span>
-        </div>
-        <div class="bc-amount">{{ fmt(saldo) }}</div>
-        <div :class="['bc-change', saldo >= 0 ? 'pos' : 'neg']">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline :points="saldo >= 0 ? '18 15 12 9 6 15' : '6 9 12 15 18 9'"/>
-          </svg>
-          {{ saldo >= 0 ? 'Positivo' : 'Negativo' }} este mês
-        </div>
-        <div class="bc-actions">
-          <router-link to="/financeiro" class="bc-btn-primary">↕ Financeiro</router-link>
-          <router-link to="/financeiro" class="bc-btn-outline">+ Lançamento</router-link>
-        </div>
-        <div class="bc-divider"></div>
-        <div class="bc-wallets-title">Resumo | {{ lancamentos.length }} lançamentos</div>
-        <div class="bc-wallet-item">
-          <div class="bwi-left">
-            <span class="bwi-flag green"></span>
-            <div>
-              <div class="bwi-name">Receitas</div>
-              <div class="bwi-status active">Pago</div>
-            </div>
-          </div>
-          <div class="bwi-amount">{{ fmt(totalReceitas) }}</div>
-        </div>
-        <div class="bc-wallet-item">
-          <div class="bwi-left">
-            <span class="bwi-flag orange"></span>
-            <div>
-              <div class="bwi-name">Despesas</div>
-              <div class="bwi-status">Pago</div>
-            </div>
-          </div>
-          <div class="bwi-amount">{{ fmt(totalDespesas) }}</div>
-        </div>
-        <div class="bc-wallet-item">
-          <div class="bwi-left">
-            <span class="bwi-flag gray"></span>
-            <div>
-              <div class="bwi-name">Produção</div>
-              <div class="bwi-status inactive">{{ producao.length }} ordens</div>
-            </div>
-          </div>
-          <div class="bwi-amount">{{ fmt(valorProducao) }}</div>
-        </div>
+    <div class="cf-summary-grid">
+      <div class="cf-summary-card">
+        <span class="cf-summary-label">Saldo realizado</span>
+        <span class="cf-summary-value">{{ fmt(saldoRealizado) }}</span>
       </div>
-
-      <!-- 2x2 Stats grid -->
-      <div class="stats-2x2">
-        <div class="stat-sm orange-card">
-          <div class="ss-top">
-            <span class="ss-label">Total Receitas</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
-          </div>
-          <div class="ss-value">{{ fmt(totalReceitas) }}</div>
-          <div class="ss-change pos-w">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-            {{ lancamentos.filter(l => l.tipo === 'Receita').length }} lançamentos
-          </div>
-        </div>
-
-        <div class="stat-sm">
-          <div class="ss-top">
-            <span class="ss-label">Total Despesas</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
-          </div>
-          <div class="ss-value dark">{{ fmt(totalDespesas) }}</div>
-          <div class="ss-change neg">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-            {{ lancamentos.filter(l => l.tipo === 'Despesa').length }} lançamentos
-          </div>
-        </div>
-
-        <div class="stat-sm">
-          <div class="ss-top">
-            <span class="ss-label">Total Produção</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </div>
-          <div class="ss-value dark">{{ fmt(valorProducao) }}</div>
-          <div class="ss-change pos">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-            {{ totalRecebida }} peças
-          </div>
-        </div>
-
-        <div class="stat-sm">
-          <div class="ss-top">
-            <span class="ss-label">Total Estoque</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          </div>
-          <div class="ss-value dark">{{ totalItensEstoque.toLocaleString() }} pç</div>
-          <div class="ss-change pos">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-            {{ estoque.length }} referências
-          </div>
-        </div>
+      <div class="cf-summary-card">
+        <span class="cf-summary-label">A receber no período</span>
+        <span class="cf-summary-value pos">{{ fmt(aReceberPeriodo) }}</span>
       </div>
-
-      <!-- Profit & Loss chart -->
-      <div class="pl-card">
-        <div class="pl-head">
-          <div>
-            <div class="pl-title">Receitas vs Despesas</div>
-            <div class="pl-sub">Visão do período por mês</div>
-          </div>
-          <div class="pl-legend">
-            <span class="pl-dot orange"></span><span>Receitas</span>
-            <span class="pl-dot dark"></span><span>Despesas</span>
-          </div>
-        </div>
-        <div class="pl-chart-wrap">
-          <Bar :data="chartData" :options="chartOptions" />
-        </div>
+      <div class="cf-summary-card">
+        <span class="cf-summary-label">A pagar no período</span>
+        <span class="cf-summary-value neg">{{ fmt(aPagarPeriodo) }}</span>
       </div>
-
+      <div class="cf-summary-card">
+        <span class="cf-summary-label">Saldo projetado</span>
+        <span class="cf-summary-value">{{ fmt(saldoProjetado) }}</span>
+      </div>
     </div>
 
-    <!-- BOTTOM 2-COLUMN -->
-    <div class="db-bottom-grid">
-
-      <!-- Left column: Spending Limit + Produção -->
-      <div class="db-left-col">
-
-        <div class="spending-card">
-          <div class="spending-head">
+    <div class="cf-mid-grid">
+      <div class="cf-panel">
+        <div class="cf-panel-head"><span>Conciliação do período</span></div>
+        <div class="cf-reconcile">
+          <div class="cf-rec-row">
+            <span>Recebido de clientes</span>
+            <span class="pos">{{ fmt(recebidoClientes) }}</span>
+          </div>
+          <div class="cf-rec-row">
+            <span>Pago a fornecedores</span>
+            <span class="neg">-{{ fmt(pagoFornecedores) }}</span>
+          </div>
+          <div class="cf-rec-row">
             <div>
-              <div class="sc-title">Limite de Despesas</div>
-              <div class="sc-sub">
-                <span class="sc-spent">{{ fmt(totalDespesas) }}</span>
-                <span class="sc-total"> gasto de {{ fmt(totalReceitas) }}</span>
-              </div>
+              <div>+ A receber</div>
+              <div class="cf-rec-sub">{{ fmt(aReceberVencido) }} vencido</div>
             </div>
-            <span class="sc-pct">{{ spendingPct }}%</span>
+            <span class="pos">{{ fmt(aReceberPeriodo) }}</span>
           </div>
-          <div class="spending-bar-wrap">
-            <div class="spending-bar" :style="{ width: spendingPct + '%', background: spendingPct > 80 ? 'var(--neg)' : 'var(--warn)' }"></div>
+          <div class="cf-rec-row">
+            <div>
+              <div>- A pagar</div>
+              <div class="cf-rec-sub">{{ fmt(aPagarVencido) }} vencido</div>
+            </div>
+            <span class="neg">-{{ fmt(aPagarPeriodo) }}</span>
           </div>
-          <div class="spending-footer">
-            <span>{{ fmt(0) }}</span>
-            <span>{{ fmt(totalReceitas) }}</span>
+          <div class="cf-rec-row cf-rec-total">
+            <span>= Saldo projetado (fim do período)</span>
+            <span class="pos">{{ fmt(saldoProjetado) }}</span>
           </div>
         </div>
-
-        <div class="prod-section">
-          <div class="prod-sec-head">
-            <span class="prod-sec-title">Produção</span>
-            <router-link to="/vendas" class="prod-add">+ Nova Ordem</router-link>
-          </div>
-          <div class="prod-cards">
-            <div v-for="(f, i) in producao.slice(0, 2)" :key="f.id" :class="['prod-card', i === 0 ? 'dark-card' : 'orange-card-light']">
-              <div class="pcard-status">
-                <span class="pcard-badge">{{ i === 0 ? 'Ativo' : 'Ativo' }}</span>
-              </div>
-              <div class="pcard-firma">{{ f.firma || 'Facção' }}</div>
-              <div class="pcard-nums">
-                <div>
-                  <div class="pcard-lbl">Enviado</div>
-                  <div class="pcard-val">{{ (f.qtdEnviada || 0).toLocaleString() }} pç</div>
-                </div>
-                <div>
-                  <div class="pcard-lbl">Recebido</div>
-                  <div class="pcard-val">{{ (f.qtdRecebida || 0).toLocaleString() }} pç</div>
-                </div>
-              </div>
-            </div>
-            <div v-if="producao.length === 0" class="prod-empty">
-              Nenhuma ordem cadastrada
-            </div>
-          </div>
-        </div>
-
       </div>
 
-      <!-- Right: Recent Activities table -->
-      <div class="activities-card">
-        <div class="act-head">
-          <span class="act-title">Atividades Recentes</span>
-          <div class="act-filters">
-            <div class="act-search">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              <input type="text" placeholder="Buscar" />
-            </div>
-            <button class="act-filter-btn">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-              Filtrar
-            </button>
-          </div>
+      <div class="cf-panel">
+        <div class="cf-panel-head">
+          <span>Saldo projetado</span>
+          <span class="cf-panel-sub">{{ periodoLabel }}</span>
         </div>
-
-        <table class="act-table">
-          <thead>
-            <tr>
-              <th><input type="checkbox" /></th>
-              <th>Nº Lançamento</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th>Status</th>
-              <th>Vencimento</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="recentActivities.length === 0">
-              <td colspan="7" class="act-empty">Nenhum lançamento encontrado</td>
-            </tr>
-            <tr v-for="l in recentActivities" :key="l.id">
-              <td><input type="checkbox" /></td>
-              <td class="act-id">{{ padId(l.id) }}</td>
-              <td>
-                <div class="act-desc-wrap">
-                  <div class="act-icon-dot" :class="l.tipo === 'Receita' ? 'green' : 'orange'">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <polyline v-if="l.tipo === 'Receita'" points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                      <polyline v-else points="23 18 13.5 8.5 8.5 13.5 1 6"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div class="act-desc">{{ l.descricao }}</div>
-                    <div class="act-cat">{{ l.categoria }}</div>
-                  </div>
-                </div>
-              </td>
-              <td class="act-val">{{ fmt(l.valor) }}</td>
-              <td>
-                <span :class="['act-badge', statusColor(l.status)]">
-                  {{ statusIcon(l.status) }} {{ l.status }}
-                </span>
-              </td>
-              <td class="act-date">{{ l.vencimento }}</td>
-              <td class="act-more">···</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="cf-chart-wrap">
+          <Line :data="chartData" :options="chartOptions" />
+        </div>
       </div>
-
     </div>
+
+    <div class="cf-section">
+      <h2 class="cf-section-title">Contas a pagar</h2>
+      <div class="cf-bucket-grid">
+        <div v-for="b in contasAPagar" :key="b.key" :class="['cf-bucket', b.key === 'atraso' ? 'danger' : b.key === 'mes' ? 'warn' : '']">
+          <span class="cf-bucket-label">{{ b.label }}</span>
+          <span class="cf-bucket-value">{{ fmt(b.total) }}</span>
+          <span class="cf-bucket-count">{{ b.count }} conta(s)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cf-section">
+      <h2 class="cf-section-title">Contas a receber</h2>
+      <div class="cf-bucket-grid">
+        <div v-for="b in contasAReceber" :key="b.key" :class="['cf-bucket', 'receber', b.key === 'atraso' ? 'warn' : '']">
+          <span class="cf-bucket-label">{{ b.label }}</span>
+          <span class="cf-bucket-value">{{ fmt(b.total) }}</span>
+          <span class="cf-bucket-count">{{ b.count }} conta(s)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cf-section">
+      <h2 class="cf-section-title">Operação no período</h2>
+      <div class="cf-op-grid">
+        <div class="cf-op-card">
+          <span class="cf-op-label">Peças enviadas</span>
+          <span class="cf-op-value">{{ pecasEnviadas.toLocaleString() }} pç</span>
+          <span class="cf-op-sub">{{ producaoNoPeriodo.length }} ordem(ns)</span>
+        </div>
+        <div class="cf-op-card">
+          <span class="cf-op-label">Peças recebidas</span>
+          <span class="cf-op-value">{{ pecasRecebidas.toLocaleString() }} pç</span>
+          <span class="cf-op-sub">{{ pecasPendentes.toLocaleString() }} pç pendente(s)</span>
+        </div>
+        <div class="cf-op-card">
+          <span class="cf-op-label">Custo de facção</span>
+          <span class="cf-op-value neg">{{ fmt(custoFaccao) }}</span>
+        </div>
+        <div class="cf-op-card">
+          <span class="cf-op-label">Estoque</span>
+          <span class="cf-op-value">{{ totalEstoque.toLocaleString() }} pç</span>
+          <span class="cf-op-sub">{{ estoque.length }} referência(s)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cf-mid-grid">
+      <div class="cf-panel">
+        <div class="cf-panel-head"><span>Plano de contas</span></div>
+        <div class="cf-list">
+          <div v-if="planoDeContas.length === 0" class="cf-empty">Nenhuma despesa no período</div>
+          <div v-for="c in planoDeContas" :key="c.categoria" class="cf-list-row">
+            <span>{{ c.categoria }}</span>
+            <span class="neg">{{ fmt(c.total) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="cf-panel">
+        <div class="cf-panel-head"><span>Centro de custo · facção</span></div>
+        <div class="cf-list">
+          <div v-if="centroCustoFaccao.length === 0" class="cf-empty">Nenhuma ordem de produção registrada</div>
+          <div v-for="c in centroCustoFaccao" :key="c.firma" class="cf-list-row">
+            <span>{{ c.firma }}</span>
+            <span>{{ fmt(c.total) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
