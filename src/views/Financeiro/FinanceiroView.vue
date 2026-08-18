@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../api/client'
 import { Bar, Doughnut } from 'vue-chartjs'
 import { ArrowDownCircle, ArrowUpCircle, BarChart2, AlertTriangle, Pencil, Trash2 } from 'lucide-vue-next'
@@ -10,8 +9,6 @@ import {
 } from 'chart.js'
 
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale, ArcElement)
-
-const authStore = useAuthStore()
 
 type Lancamento = {
   id: number
@@ -140,10 +137,6 @@ const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', curren
         <div class="subpage-title-group">
           <h1>Financeiro</h1>
           <span class="subpage-breadcrumb">Sistema / Financeiro</span>
-        </div>
-        <div class="subpage-user-chip">
-          <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
-          <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
         </div>
       </div>
 

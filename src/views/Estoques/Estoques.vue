@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../api/client'
 import { ClipboardList, CheckSquare, XCircle, Pencil, Trash2 } from 'lucide-vue-next'
-
-const authStore = useAuthStore()
 
 type Item = {
   id: number
@@ -85,10 +82,6 @@ const dotColor = (cor: string) => corDot[cor.toLowerCase()] ?? '#94a3b8'
         <div class="subpage-title-group">
           <h1>Estoque</h1>
           <span class="subpage-breadcrumb">Sistema / Estoque</span>
-        </div>
-        <div class="subpage-user-chip">
-          <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
-          <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
         </div>
       </div>
 

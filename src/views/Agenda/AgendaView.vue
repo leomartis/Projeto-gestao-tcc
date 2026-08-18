@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../api/client'
 import { Clock, AlertTriangle, CheckCircle2, Pencil, Trash2 } from 'lucide-vue-next'
-
-const authStore = useAuthStore()
 
 type Compromisso = {
   id: number
@@ -94,10 +91,6 @@ const deleteRow = async (id: number) => {
         <div class="subpage-title-group">
           <h1>Agenda</h1>
           <span class="subpage-breadcrumb">Sistema / Agenda</span>
-        </div>
-        <div class="subpage-user-chip">
-          <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
-          <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
         </div>
       </div>
 

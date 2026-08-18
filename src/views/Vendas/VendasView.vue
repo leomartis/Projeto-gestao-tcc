@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../api/client'
 import { Send, Download, Clock, DollarSign, Settings, Pencil, Trash2 } from 'lucide-vue-next'
-
-const authStore = useAuthStore()
 
 const metaDiaria = ref(1850)
 const showConfig = ref(false)
@@ -128,10 +125,6 @@ const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', cur
         </div>
         <div class="header-right">
           <button class="btn-config" @click="showConfig = !showConfig"><Settings :size="14"/> Configurar</button>
-          <div class="subpage-user-chip">
-            <div class="subpage-avatar">{{ (authStore.user?.email || 'U')[0].toUpperCase() }}</div>
-            <span class="subpage-user-name">{{ authStore.user?.email || 'Usuário' }}</span>
-          </div>
         </div>
       </div>
 
