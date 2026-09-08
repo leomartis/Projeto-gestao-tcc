@@ -1,9 +1,9 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import authRouter from './routes/auth.js'
-import { createResourceRouter } from './routes/resource.js'
-import { errorHandler } from './middleware/errorHandler.js'
+import authRouter from './routes/auth.ts'
+import { createResourceRouter } from './routes/resource.ts'
+import { errorHandler } from './middleware/errorHandler.ts'
 
 dotenv.config({ path: new URL('./.env', import.meta.url) })
 

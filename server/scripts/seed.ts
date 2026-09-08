@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import pool from '../db.js'
+import pool from '../db.ts'
 
 const email = 'gestao@email.com'
 const senha = '123456'
